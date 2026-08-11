@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Fonoaudiologia - HCPA</title>
+  
+  <!-- Estilos visuais da página -->
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 30px;
+      background-color: #f0f2f5;
+      color: #1c1e21;
+    }
+    header {
+      margin-bottom: 25px;
+    }
+    h1 {
+      color: #004085;
+      margin: 0 0 8px 0;
+    }
+    p.sub {
+      color: #6c757d;
+      margin: 0;
+    }
+    
+    /* Grid dos cartões de métricas (KPIs) */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .kpi-card {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border-left: 5px solid #0056b3;
+    }
+    .kpi-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .kpi-card p {
+      margin: 0;
+      font-size: 32px;
+      font-weight: bold;
+      color: #1c1e21;
+    }
+
+    /* Grid dos gráficos */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 25px;
+    }
+    .chart-card {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .chart-card h2 {
+      font-size: 16px;
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #333;
+    }
+  </style>
+
+  <!-- Biblioteca PapaParse: Converte CSV em Objeto JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <!-- Biblioteca Chart.js: Gera os gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>Atendimentos Fonoaudiologia — HCPA</h1>
+    <p class="sub">Painel demonstrativo baseado em dados extraídos via CSV</p>
+  </header>
+
+  <!-- Cartões de Resumo (KPIs) -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <h3>Atendimentos Únicos</h3>
+      <p id="kpi-total-unicos">-</p>
+    </div>
+    <div class="kpi-card" style="border-left-color: #28a745;">
+      <h3>Total de Registros</h3>
+      <p id="kpi-total-registros">-</p>
+    </div>
+    <div class="kpi-card" style="border-left-color: #ffc107;">
+      <h3>Tempo Médio de Espera</h3>
+      <p id="kpi-tempo-medio">-</p>
+    </div>
+  </div>
+
+  <!-- Área de Gráficos -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>Atendimentos por Consultor</h2>
+      <canvas id="graficoConsultores"></canvas>
+    </div>
+    <div class="chart-card">
+      <h2>Distribuição por Turno</h2>
+      <canvas id="graficoTurnos"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Nome do arquivo CSV presente na raiz do repositório
+    const NOME_ARQUIVO_CSV = "atendimentos.csv";
+
+    function processarDadosCSV(linhas) {
+      const idsProcessados = new Set();
+      const consultores = {};
+      const turnos = {};
+      let somaEspera = 0;
+      let qtdEsperaValida = 0;
+
+      linhas.forEach(linha => {
+        // AJUSTE AQUI OS NOMES ENTRE ASPAS DE ACORDO COM O SEU CSV:
+        const idAtendimento = linha['ID_Atendimento'] || linha['ID'] || linha['Atendimento']; 
+        const consultor     = linha['Consultor'] || linha['Profissional'];
+        const turno         = linha['Turno'];
+        const tempoEspera   = parseFloat(linha['Tempo_Espera_Minutos'] || linha['Tempo_Espera']);
+
+        if (!idAtendimento) return; // descarta linhas vazias
+
+        // 1. Contagem desconsiderando duplicados
+        idsProcessados.add(String(idAtendimento).trim());
+
+        // 2. Contagem por Consultor
+        if (consultor) {
+          const nomeConsultor = consultor.trim();
+          consultores[nomeConsultor] = (consultores[nomeConsultor] || 0) + 1;
+        }
+
+        // 3. Contagem por Turno
+        if (turno) {
+          const nomeTurno = turno.trim();
+          turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
+        }
+
+        // 4. Média de tempo de espera
+        if (!isNaN(tempoEspera)) {
+          somaEspera += tempoEspera;
+          qtdEsperaValida++;
+        }
+      });
+
+      // Atualiza os cartões com os resultados dos cálculos
+      document.getElementById('kpi-total-unicos').innerText = idsProcessados.size;
+      document.getElementById('kpi-total-registros').innerText = linhas.length;
+      
+      const mediaFinal = qtdEsperaValida > 0 ? (somaEspera / qtdEsperaValida).toFixed(1) : 0;
+      document.getElementById('kpi-tempo-medio').innerText = `${mediaFinal} min`;
+
+      // Renderiza os gráficos
+      renderizarGraficoBarras('graficoConsultores', Object.keys(consultores), Object.values(consultores), 'Atendimentos');
+      renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
+    }
+
+    function renderizarGraficoBarras(idCanvas, rotulos, dados, legenda) {
+      const ctx = document.getElementById(idCanvas).getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: rotulos,
+          datasets: [{
+            label: legenda,
+            data: dados,
+            backgroundColor: '#0056b3',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function renderizarGraficoPizza(idCanvas, rotulos, dados) {
+      const ctx = document.getElementById(idCanvas).getContext('2d');
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: rotulos,
+          datasets: [{
+            data: dados,
+            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1']
+          }]
+        },
+        options: {
+          responsive: true
+        }
+      });
+    }
+
+    // Lê o arquivo CSV enviado para o GitHub
+    Papa.parse(NOME_ARQUIVO_CSV, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        processarDadosCSV(results.data);
+      },
+      error: function(err) {
+        console.error("Erro ao ler arquivo CSV:", err);
+      }
+    });
+  </script>
+</body>
+</html>
