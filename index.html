@@ -142,7 +142,7 @@
     }
 
     /* Card da Linha do Tempo + Botões de Período */
-    .timeline-card {
+    .timeline-card, .full-width-card {
       background: #ffffff;
       padding: 20px;
       border-radius: 10px;
@@ -157,9 +157,9 @@
       gap: 10px;
       margin-bottom: 15px;
     }
-    .timeline-header h2 {
+    .timeline-header h2, .full-width-card h2 {
       font-size: 16px;
-      margin: 0;
+      margin: 0 0 15px 0;
       color: #333;
     }
 
@@ -261,7 +261,7 @@
   <!-- Gráfico de Linha do Tempo com Filtros de Período -->
   <div class="timeline-card">
     <div class="timeline-header">
-      <h2>Linha do tempo: Consultorias Solicitadas vs. Atendimentos Realizados</h2>
+      <h2 style="margin: 0;">Linha do tempo: Consultorias Solicitadas vs. Atendimentos Realizados</h2>
       
       <!-- Seletor de Períodos Tempo -->
       <div class="time-buttons">
@@ -275,20 +275,26 @@
       </div>
     </div>
 
-    <canvas id="graficoLinhaTempo" style="max-height: 350px;"></canvas>
+    <div style="position: relative; height: 350px;">
+      <canvas id="graficoLinhaTempo"></canvas>
+    </div>
   </div>
 
-  <!-- Área de Gráficos Secundários -->
+  <!-- NOVO: Gráfico de Consultores em Linha Única -->
+  <div class="full-width-card">
+    <h2>Atendimentos por Consultor</h2>
+    <!-- A altura fixa (400px) e o position relative impedem o gráfico de achatar ou sumir -->
+    <div style="position: relative; height: 400px; width: 100%;">
+      <canvas id="graficoConsultores"></canvas>
+    </div>
+  </div>
+
+  <!-- Área de Gráficos Secundários (agora dividindo espaço em 2) -->
   <div class="charts-grid">
     <!-- GRÁFICO: Nível Assistencial -->
     <div class="chart-card">
       <h2>Perfil de Complexidade (Nível Assistencial)</h2>
       <canvas id="graficoNivelAssistencial"></canvas>
-    </div>
-
-    <div class="chart-card">
-      <h2>Atendimentos por Consultor</h2>
-      <canvas id="graficoConsultores"></canvas>
     </div>
 
     <div class="chart-card">
@@ -340,35 +346,25 @@
       return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
-    // Função Robustecida com Regex para Extração do Nível Assistencial
     function extrairNivelAssistencial(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return 'Não Informado';
       
-      // Normaliza texto: remove acentos, converte para minúsculo e substitui quebras de linha/múltiplos espaços por espaço único
       const textoLimpo = String(textoResposta)
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/\s+/g, " ");
-      // Regex para capturar a expressão "nivel assistencial" e o trecho seguinte
       const regexNivel = /[nN][íi]vel\s+[aA]ssistencial\s*[:\-=]?\s*([a-zé\s]+)/i;
       const match = textoLimpo.match(regexNivel);
       if (match && match[0]) {
         const trechoEncontrado = match[0];
-        if (trechoEncontrado.includes('alto')) {
-          return 'Alto';
-        }
-        if (trechoEncontrado.includes('medio') || trechoEncontrado.includes('médio')) {
-          return 'Médio';
-        }
-        if (trechoEncontrado.includes('baixo')) {
-          return 'Baixo';
-        }
+        if (trechoEncontrado.includes('alto')) return 'Alto';
+        if (trechoEncontrado.includes('medio') || trechoEncontrado.includes('médio')) return 'Médio';
+        if (trechoEncontrado.includes('baixo')) return 'Baixo';
       }
-      // Fallback
-      console.log(textoLimpo);
       return 'Não Informado';
     }
+    
     function alternarDropdown() {
       document.getElementById('dropdown-list').classList.toggle('show');
     }
@@ -487,7 +483,6 @@
         const dataSolic = extrairDataISO(linha['SOLIC_CONSULTORIA']);
         const dataResp  = extrairDataISO(linha['DTHR_RESPOSTA']);
 
-        // Extrai Nível Assistencial com Regex
         const nivel = extrairNivelAssistencial(textoResposta);
         niveisAssistenciais[nivel] = (niveisAssistenciais[nivel] || 0) + 1;
 
@@ -521,14 +516,12 @@
         }
       });
 
-      // Atualiza os cartões de métricas (KPIs)
       document.getElementById('kpi-total-unicos').innerText = idsProcessados.size;
       document.getElementById('kpi-total-registros').innerText = linhas.length;
       
       const mediaFinal = qtdEsperaValida > 0 ? (somaEspera / qtdEsperaValida).toFixed(1) : 0;
       document.getElementById('kpi-tempo-medio').innerText = `${mediaFinal} h`;
 
-      // Aplica o filtro de janela temporal no gráfico de linha
       let datasOrdenadas = Array.from(conjuntoTodasDatas).sort();
 
       if (datasOrdenadas.length > 0 && periodoSelecionado !== 'TODOS') {
@@ -556,7 +549,6 @@
       renderizarGraficoLinhaTempo(rotulosDatas, vetorSolicitacoes, vetorRespostas);
       renderizarGraficoNivelAssistencial(niveisAssistenciais);
       
-      // ALTERAÇÃO FEITA AQUI: Ordenando os consultores do maior para o menor
       const consultoresOrdenados = Object.entries(consultores).sort((a, b) => b[1] - a[1]);
       const rotulosConsultores = consultoresOrdenados.map(item => item[0]);
       const dadosConsultores = consultoresOrdenados.map(item => item[1]);
@@ -656,8 +648,9 @@
           }]
         },
         options: {
-          indexAxis: 'y', // ALTERAÇÃO FEITA AQUI: Deixa o gráfico de barras horizontal
+          indexAxis: 'y',
           responsive: true,
+          maintainAspectRatio: false, /* Importante para gráficos ocuparem corretamente o espaço da div */
           plugins: { legend: { display: false } }
         }
       });
