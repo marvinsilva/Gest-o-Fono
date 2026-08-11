@@ -353,8 +353,8 @@
       // Regex para capturar a expressão "nivel assistencial" e o trecho seguinte
       const regexNivel = /[nN][íi]vel\s+[aA]ssistencial\s*[:\-=]?\s*([a-zé\s]+)/i;
       const match = textoLimpo.match(regexNivel);
-      if (match && match[1]) {
-        const trechoEncontrado = match[1].substring(0, 40); // analisa os 40 caracteres seguintes
+      if (match && match[0]) {
+        const trechoEncontrado = match[0];
         if (trechoEncontrado.includes('alto')) {
           return 'Alto';
         }
