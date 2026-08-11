@@ -34,8 +34,8 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       margin-bottom: 25px;
       display: flex;
-      align-items: center;
-      gap: 15px;
+      flex-direction: column;
+      gap: 8px;
     }
     .filter-container label {
       font-weight: bold;
@@ -43,14 +43,17 @@
       font-size: 14px;
     }
     .filter-container select {
-      padding: 8px 12px;
+      padding: 8px;
       border-radius: 6px;
       border: 1px solid #ced4da;
-      font-size: 14px;
-      min-width: 250px;
+      font-size: 13px;
       outline: none;
       background-color: #fff;
-      cursor: pointer;
+      height: 110px; /* Altura ideal para visualizar várias opções de uma vez */
+    }
+    .filter-hint {
+      font-size: 11px;
+      color: #6c757d;
     }
     
     /* Grid dos cartões de métricas (KPIs) */
@@ -112,12 +115,13 @@
     <p class="sub">Painel demonstrativo baseado em dados extraídos via CSV</p>
   </header>
 
-  <!-- Filtro por Local/Área de Atendimento -->
+  <!-- Filtro por Local/Área de Atendimento Multi-seleção -->
   <div class="filter-container">
-    <label for="select-area">Filtrar por Área de Atendimento:</label>
-    <select id="select-area" onchange="aplicarFiltro()">
-      <option value="TODAS">Todas as Áreas</option>
+    <label for="select-area">Filtrar por Área(s) de Atendimento:</label>
+    <select id="select-area" multiple onchange="aplicarFiltro()">
+      <option value="TODAS" selected>-- Todas as Áreas --</option>
     </select>
+    <span class="filter-hint">💡 Segure a tecla <b>Ctrl</b> (ou <b>Cmd</b> no Mac) para selecionar ou desmarcar mais de uma área.</span>
   </div>
 
   <!-- Cartões de Resumo (KPIs) -->
@@ -151,12 +155,10 @@
   <script>
     const NOME_ARQUIVO_CSV = "RelatorioConsultoriaDeInternacaoFonoaudiologia_202608223.csv";
     
-    // Variáveis globais para guardar as instâncias dos gráficos e o total de dados lidos
     let dadosBrutosCSV = [];
     let instanciaGraficoBarras = null;
     let instanciaGraficoPizza = null;
 
-    // Converte vírgula do Excel em ponto para o JS calcular
     function converterParaNumero(valor) {
       if (!valor) return NaN;
       if (typeof valor === 'number') return valor;
@@ -164,7 +166,6 @@
       return parseFloat(limpo);
     }
 
-    // Povoa o <select> com todas as áreas disponíveis no CSV
     function preencherOpcoesDeFiltro(linhas) {
       const select = document.getElementById('select-area');
       const areasUnicas = new Set();
@@ -176,7 +177,6 @@
         }
       });
 
-      // Ordena alfabeticamente os nomes das áreas
       Array.from(areasUnicas).sort().forEach(area => {
         const option = document.createElement('option');
         option.value = area;
@@ -185,20 +185,22 @@
       });
     }
 
-    // Função disparada quando o usuário troca a seleção no menu
     function aplicarFiltro() {
-      const areaSelecionada = document.getElementById('select-area').value;
+      const select = document.getElementById('select-area');
+      
+      // Coleta todas as opções selecionadas pelo usuário
+      const selecoes = Array.from(select.selectedOptions).map(option => option.value);
 
       let dadosFiltrados = dadosBrutosCSV;
 
-      if (areaSelecionada !== 'TODAS') {
+      // Se a opção "TODAS" estiver selecionada ou nada for marcado, mantém todos os dados
+      if (!selecoes.includes('TODAS') && selecoes.length > 0) {
         dadosFiltrados = dadosBrutosCSV.filter(linha => {
           const local = linha['LOCAL_ATEND'];
-          return local && String(local).trim() === areaSelecionada;
+          return local && selecoes.includes(String(local).trim());
         });
       }
 
-      // Reprocessa os gráficos e indicadores usando só os dados filtrados
       processarDadosCSV(dadosFiltrados);
     }
 
@@ -219,42 +221,35 @@
 
         if (!idAtendimento || String(idAtendimento).trim() === '') return;
 
-        // 1. Pacientes Únicos
         idsProcessados.add(String(idAtendimento).trim());
 
-        // 2. Por Consultor
         if (consultor && String(consultor).trim() !== '') {
           const nomeConsultor = String(consultor).trim();
           consultores[nomeConsultor] = (consultores[nomeConsultor] || 0) + 1;
         }
 
-        // 3. Por Turno
         if (turno && String(turno).trim() !== '') {
           const nomeTurno = String(turno).trim();
           turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
         }
 
-        // 4. Média de tempo
         if (!isNaN(tempoEspera)) {
           somaEspera += tempoEspera;
           qtdEsperaValida++;
         }
       });
 
-      // Atualiza os cartões de indicadores
       document.getElementById('kpi-total-unicos').innerText = idsProcessados.size;
       document.getElementById('kpi-total-registros').innerText = linhas.length;
       
       const mediaFinal = qtdEsperaValida > 0 ? (somaEspera / qtdEsperaValida).toFixed(1) : 0;
       document.getElementById('kpi-tempo-medio').innerText = `${mediaFinal} h`;
 
-      // Renderiza/Atualiza os gráficos
       renderizarGraficoBarras('graficoConsultores', Object.keys(consultores), Object.values(consultores), 'Atendimentos');
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
     }
 
     function renderizarGraficoBarras(idCanvas, rotulos, dados, legenda) {
-      // Destrói o gráfico antigo antes de criar o novo (necessário no filtro)
       if (instanciaGraficoBarras) {
         instanciaGraficoBarras.destroy();
       }
@@ -279,7 +274,6 @@
     }
 
     function renderizarGraficoPizza(idCanvas, rotulos, dados) {
-      // Destrói o gráfico antigo antes de criar o novo (necessário no filtro)
       if (instanciaGraficoPizza) {
         instanciaGraficoPizza.destroy();
       }
@@ -300,16 +294,17 @@
       });
     }
 
-    // Leitura Inicial do CSV
+    // Leitura com parâmetro ENCODING corrigido para resolver o bug de acentos do Excel
     Papa.parse(NOME_ARQUIVO_CSV, {
       download: true,
       header: true,
       skipEmptyLines: true,
+      encoding: "ISO-8859-1", // Força o padrão de caracteres em português do Excel
       complete: function(results) {
         if (results.data && results.data.length > 0) {
-          dadosBrutosCSV = results.data; // Guarda os dados originais
-          preencherOpcoesDeFiltro(dadosBrutosCSV); // Cria as opções do menu
-          processarDadosCSV(dadosBrutosCSV); // Exibe o estado inicial (todas as áreas)
+          dadosBrutosCSV = results.data;
+          preencherOpcoesDeFiltro(dadosBrutosCSV);
+          processarDadosCSV(dadosBrutosCSV);
         }
       }
     });
