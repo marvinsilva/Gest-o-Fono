@@ -350,14 +350,11 @@
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/\s+/g, " ");
-console.log(textoLimpo)
       // Regex para capturar a expressão "nivel assistencial" e o trecho seguinte
-      const regexNivel = /[nN][íi]vel\s+[aA]ssistencial\s*[:\-=]?\s*([a-zé\s]+)/i;
+      const regexNivel = /([nN][íi]vel\s+)*[aA]ssistencial\s*[:\-=]?\s*([a-zé\s]+)/i;
       const match = textoLimpo.match(regexNivel);
-console.log(match)
       if (match && match[1]) {
         const trechoEncontrado = match[1].substring(0, 40); // analisa os 40 caracteres seguintes
-console.log(trechoEncontrado)
         if (trechoEncontrado.includes('alto')) {
           return 'Alto';
         }
@@ -369,14 +366,10 @@ console.log(trechoEncontrado)
         }
       }
 
-      // Fallback: se não achar a expressão exata "nivel assistencial", busca termos isolados comuns
-      if (textoLimpo.includes('nivel assistencial medio') || textoLimpo.includes('assistencial medio')) return 'Médio';
-      if (textoLimpo.includes('nivel assistencial alto') || textoLimpo.includes('assistencial alto') || textoLimpo.includes('assistencial intensivo')) return 'Alto';
-      if (textoLimpo.includes('nivel assistencial baixo') || textoLimpo.includes('assistencial baixo') || textoLimpo.includes('assistencial minimo')) return 'Baixo';
-
+      // Fallback
+      console.log(textoLimpo);
       return 'Não Informado';
     }
-
     function alternarDropdown() {
       document.getElementById('dropdown-list').classList.toggle('show');
     }
