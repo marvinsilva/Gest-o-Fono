@@ -25,7 +25,6 @@
       margin: 0;
     }
 
-    /* Container do Filtro Customizado */
     .filter-container {
       background: #ffffff;
       padding: 15px 20px;
@@ -42,7 +41,6 @@
       display: block;
     }
 
-    /* Botão do Dropdown */
     .dropdown-btn {
       width: 100%;
       max-width: 400px;
@@ -64,7 +62,6 @@
       color: #6c757d;
     }
 
-    /* Painel Flutuante de Checkboxes */
     .dropdown-content {
       display: none;
       position: absolute;
@@ -113,7 +110,6 @@
       background-color: #f0f4f8;
     }
 
-    /* Grid dos cartões de métricas (KPIs) */
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -141,7 +137,6 @@
       color: #1c1e21;
     }
 
-    /* Card da Linha do Tempo + Botões de Período */
     .timeline-card, .full-width-card {
       background: #ffffff;
       padding: 20px;
@@ -163,7 +158,6 @@
       color: #333;
     }
 
-    /* Botões de Período Temporal */
     .time-buttons {
       display: flex;
       gap: 6px;
@@ -189,7 +183,15 @@
       border-color: #0056b3;
     }
 
-    /* Grid dos gráficos menores */
+    /* Container especial para permitir Scroll caso haja muitos consultores */
+    .scroll-area-y {
+      width: 100%;
+      max-height: 400px; /* Altura máxima visível antes de criar barra de rolagem */
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 10px;
+    }
+
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -209,7 +211,6 @@
     }
   </style>
 
-  <!-- Biblioteca PapaParse e Chart.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -220,17 +221,13 @@
     <p class="sub">Painel demonstrativo baseado em dados extraídos do AGHUSE</p>
   </header>
 
-  <!-- Filtro por Área de Atendimento com Checkboxes -->
   <div class="filter-container">
     <span class="filter-label">Filtrar por Área(s) de Atendimento:</span>
-    
     <button id="btn-dropdown" class="dropdown-btn" onclick="alternarDropdown()">
       <span id="btn-text">Todas as Áreas selecionadas</span>
     </button>
-
     <div id="dropdown-list" class="dropdown-content">
       <input type="text" id="input-busca" class="search-box" placeholder="Pesquisar área..." onkeyup="filtrarListaOpcoes()">
-      
       <div class="checkbox-list">
         <label class="checkbox-item">
           <input type="checkbox" id="chk-todos" checked onchange="marcarTodos(this)">
@@ -242,7 +239,6 @@
     </div>
   </div>
 
-  <!-- Cartões de Resumo (KPIs) -->
   <div class="kpi-grid">
     <div class="kpi-card">
       <h3>Pacientes</h3>
@@ -258,12 +254,9 @@
     </div>
   </div>
 
-  <!-- Gráfico de Linha do Tempo com Filtros de Período -->
   <div class="timeline-card">
     <div class="timeline-header">
       <h2 style="margin: 0;">Linha do tempo: Consultorias Solicitadas vs. Atendimentos Realizados</h2>
-      
-      <!-- Seletor de Períodos Tempo -->
       <div class="time-buttons">
         <button class="time-btn active" onclick="definirFiltroPeriodo('TODOS', this)">Todos</button>
         <button class="time-btn" onclick="definirFiltroPeriodo('1Y', this)">1 Ano</button>
@@ -274,29 +267,29 @@
         <button class="time-btn" onclick="definirFiltroPeriodo('1D', this)">Hoje</button>
       </div>
     </div>
-
     <div style="position: relative; height: 350px;">
       <canvas id="graficoLinhaTempo"></canvas>
     </div>
   </div>
 
-  <!-- NOVO: Gráfico de Consultores em Linha Única -->
+  <!-- Gráfico de Consultores com Altura Dinâmica e Scroll -->
   <div class="full-width-card">
     <h2>Atendimentos por Consultor</h2>
-    <!-- A altura fixa (400px) e o position relative impedem o gráfico de achatar ou sumir -->
-    <div style="position: relative; height: 400px; width: 100%;">
-      <canvas id="graficoConsultores"></canvas>
+    
+    <!-- Div que cria a barra de rolagem se necessário -->
+    <div class="scroll-area-y">
+      <!-- Div cuja altura será definida pelo JavaScript dependendo do número de pessoas -->
+      <div id="wrapperGraficoConsultores" style="position: relative; width: 100%;">
+        <canvas id="graficoConsultores"></canvas>
+      </div>
     </div>
   </div>
 
-  <!-- Área de Gráficos Secundários (agora dividindo espaço em 2) -->
   <div class="charts-grid">
-    <!-- GRÁFICO: Nível Assistencial -->
     <div class="chart-card">
       <h2>Perfil de Complexidade (Nível Assistencial)</h2>
       <canvas id="graficoNivelAssistencial"></canvas>
     </div>
-
     <div class="chart-card">
       <h2>Distribuição por Turno</h2>
       <canvas id="graficoTurnos"></canvas>
@@ -323,9 +316,7 @@
 
     function extrairDataISO(stringDataHora) {
       if (!stringDataHora || String(stringDataHora).trim() === '') return null;
-      
       const texto = String(stringDataHora).trim();
-      
       if (texto.includes('/')) {
         const partes = texto.split(' ')[0].split('/');
         if (partes.length === 3) {
@@ -348,7 +339,6 @@
 
     function extrairNivelAssistencial(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return 'Não Informado';
-      
       const textoLimpo = String(textoResposta)
         .toLowerCase()
         .normalize("NFD")
@@ -381,7 +371,6 @@
     function filtrarListaOpcoes() {
       const termo = document.getElementById('input-busca').value.toLowerCase();
       const itens = document.querySelectorAll('#lista-checkboxes .checkbox-item');
-      
       itens.forEach(item => {
         const texto = item.textContent.toLowerCase();
         item.style.display = texto.includes(termo) ? 'flex' : 'none';
@@ -392,25 +381,21 @@
       const conteiner = document.getElementById('lista-checkboxes');
       conteiner.innerHTML = '';
       const areasUnicas = new Set();
-
       linhas.forEach(linha => {
         const local = linha['LOCAL_ATEND'];
         if (local && String(local).trim() !== '') {
           areasUnicas.add(String(local).trim());
         }
       });
-
       Array.from(areasUnicas).sort().forEach(area => {
         const label = document.createElement('label');
         label.className = 'checkbox-item';
-        
         const chk = document.createElement('input');
         chk.type = 'checkbox';
         chk.value = area;
         chk.checked = true;
         chk.className = 'chk-area';
         chk.onchange = aplicarFiltro;
-
         label.appendChild(chk);
         label.appendChild(document.createTextNode(area));
         conteiner.appendChild(label);
@@ -454,7 +439,6 @@
           return local && selecionadas.includes(String(local).trim());
         });
       }
-
       processarDadosCSV(dadosFiltrados);
     }
 
@@ -466,7 +450,6 @@
 
       let somaEspera = 0;
       let qtdEsperaValida = 0;
-
       const contagemSolicitacoesPorDia = {};
       const contagemRespostasPorDia = {};
       const conjuntoTodasDatas = new Set();
@@ -476,40 +459,33 @@
         const consultor     = linha['CONSULTOR'];
         const turno         = linha['TURNO'];
         const textoResposta = linha['RESPOSTA'];
-        
         const valorTempo = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
         const tempoEspera = converterParaNumero(valorTempo);
-
         const dataSolic = extrairDataISO(linha['SOLIC_CONSULTORIA']);
         const dataResp  = extrairDataISO(linha['DTHR_RESPOSTA']);
-
         const nivel = extrairNivelAssistencial(textoResposta);
+        
         niveisAssistenciais[nivel] = (niveisAssistenciais[nivel] || 0) + 1;
 
         if (dataSolic) {
           contagemSolicitacoesPorDia[dataSolic] = (contagemSolicitacoesPorDia[dataSolic] || 0) + 1;
           conjuntoTodasDatas.add(dataSolic);
         }
-
         if (dataResp) {
           contagemRespostasPorDia[dataResp] = (contagemRespostasPorDia[dataResp] || 0) + 1;
           conjuntoTodasDatas.add(dataResp);
         }
-
         if (!idAtendimento || String(idAtendimento).trim() === '') return;
-
         idsProcessados.add(String(idAtendimento).trim());
 
         if (consultor && String(consultor).trim() !== '') {
           const nomeConsultor = String(consultor).trim();
           consultores[nomeConsultor] = (consultores[nomeConsultor] || 0) + 1;
         }
-
         if (turno && String(turno).trim() !== '') {
           const nomeTurno = String(turno).trim();
           turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
         }
-
         if (!isNaN(tempoEspera)) {
           somaEspera += tempoEspera;
           qtdEsperaValida++;
@@ -518,17 +494,14 @@
 
       document.getElementById('kpi-total-unicos').innerText = idsProcessados.size;
       document.getElementById('kpi-total-registros').innerText = linhas.length;
-      
       const mediaFinal = qtdEsperaValida > 0 ? (somaEspera / qtdEsperaValida).toFixed(1) : 0;
       document.getElementById('kpi-tempo-medio').innerText = `${mediaFinal} h`;
 
       let datasOrdenadas = Array.from(conjuntoTodasDatas).sort();
-
       if (datasOrdenadas.length > 0 && periodoSelecionado !== 'TODOS') {
         const dataMaisRecenteISO = datasOrdenadas[datasOrdenadas.length - 1];
         const dataAncora = new Date(dataMaisRecenteISO + "T00:00:00");
         let dataLimite = new Date(dataAncora);
-
         if (periodoSelecionado === '1Y') dataLimite.setFullYear(dataAncora.getFullYear() - 1);
         else if (periodoSelecionado === '6M') dataLimite.setMonth(dataAncora.getMonth() - 6);
         else if (periodoSelecionado === '3M') dataLimite.setMonth(dataAncora.getMonth() - 3);
@@ -549,139 +522,90 @@
       renderizarGraficoLinhaTempo(rotulosDatas, vetorSolicitacoes, vetorRespostas);
       renderizarGraficoNivelAssistencial(niveisAssistenciais);
       
-      const consultoresOrdenados = Object.entries(consultores).sort((a, b) => b[1] - a[1]);
-      const rotulosConsultores = consultoresOrdenados.map(item => item[0]);
-      const dadosConsultores = consultoresOrdenados.map(item => item[1]);
+      // ALTERAÇÃO: Removido o .sort(), mantendo a ordem original dos dados
+      const consultoresOriginais = Object.entries(consultores);
+      const rotulosConsultores = consultoresOriginais.map(item => item[0]);
+      const dadosConsultores = consultoresOriginais.map(item => item[1]);
       
       renderizarGraficoBarras('graficoConsultores', rotulosConsultores, dadosConsultores, 'Atendimentos');
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
     }
 
     function renderizarGraficoLinhaTempo(labelsDatas, dadosSolicitados, dadosAtendidos) {
-      if (instanciaGraficoLinhaTempo) {
-        instanciaGraficoLinhaTempo.destroy();
-      }
-
+      if (instanciaGraficoLinhaTempo) instanciaGraficoLinhaTempo.destroy();
       const ctx = document.getElementById('graficoLinhaTempo').getContext('2d');
       instanciaGraficoLinhaTempo = new Chart(ctx, {
         type: 'line',
         data: {
           labels: labelsDatas,
           datasets: [
-            {
-              label: 'Consultorias Solicitadas (Demanda)',
-              data: dadosSolicitados,
-              borderColor: '#dc3545',
-              backgroundColor: 'rgba(220, 53, 69, 0.1)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.3
-            },
-            {
-              label: 'Atendimentos Realizados (Resposta)',
-              data: dadosAtendidos,
-              borderColor: '#28a745',
-              backgroundColor: 'rgba(40, 167, 69, 0.1)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.3
-            }
+            { label: 'Consultorias Solicitadas', data: dadosSolicitados, borderColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)', borderWidth: 2, fill: true, tension: 0.3 },
+            { label: 'Atendimentos Realizados', data: dadosAtendidos, borderColor: '#28a745', backgroundColor: 'rgba(40, 167, 69, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }
           ]
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
-              labels: { font: { size: 12, weight: 'bold' } }
-            }
-          },
-          scales: {
-            x: { title: { display: true, text: 'Data' } },
-            y: { title: { display: true, text: 'Quantidade' }, beginAtZero: true }
-          }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
       });
     }
 
     function renderizarGraficoNivelAssistencial(dadosNiveis) {
-      if (instanciaGraficoNivel) {
-        instanciaGraficoNivel.destroy();
-      }
-
+      if (instanciaGraficoNivel) instanciaGraficoNivel.destroy();
       const ctx = document.getElementById('graficoNivelAssistencial').getContext('2d');
       instanciaGraficoNivel = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: ['Alto', 'Médio', 'Baixo', 'Não Informado'],
-          datasets: [{
-            label: 'Atendimentos',
-            data: [dadosNiveis['Alto'], dadosNiveis['Médio'], dadosNiveis['Baixo'], dadosNiveis['Não Informado']],
-            backgroundColor: ['#dc3545', '#ffc107', '#28a745', '#6c757d'],
-            borderRadius: 6
-          }]
+          datasets: [{ data: [dadosNiveis['Alto'], dadosNiveis['Médio'], dadosNiveis['Baixo'], dadosNiveis['Não Informado']], backgroundColor: ['#dc3545', '#ffc107', '#28a745', '#6c757d'], borderRadius: 6 }]
         },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true } }
-        }
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
     }
 
     function renderizarGraficoBarras(idCanvas, rotulos, dados, legenda) {
-      if (instanciaGraficoBarras) {
-        instanciaGraficoBarras.destroy();
-      }
+      if (instanciaGraficoBarras) instanciaGraficoBarras.destroy();
+      
+      // Cálculo Inteligente da altura: Garante 30 pixels de altura para cada nome/barra.
+      // Assim, se houver 30 consultores, ele cria um gráfico de 900px, e o usuário pode rolar a tela.
+      const alturaIdeal = Math.max(300, rotulos.length * 30);
+      document.getElementById('wrapperGraficoConsultores').style.height = alturaIdeal + "px";
 
       const ctx = document.getElementById(idCanvas).getContext('2d');
       instanciaGraficoBarras = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: rotulos,
-          datasets: [{
-            label: legenda,
-            data: dados,
-            backgroundColor: '#0056b3',
-            borderRadius: 6
-          }]
+          datasets: [{ label: legenda, data: dados, backgroundColor: '#0056b3', borderRadius: 6 }]
         },
         options: {
           indexAxis: 'y',
           responsive: true,
-          maintainAspectRatio: false, /* Importante para gráficos ocuparem corretamente o espaço da div */
-          plugins: { legend: { display: false } }
+          maintainAspectRatio: false, 
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              ticks: {
+                autoSkip: false // ISSO OBRIGA O CHART.JS A MOSTRAR TODOS OS NOMES, SEM ESCONDER NINGUÉM
+              }
+            }
+          }
         }
       });
     }
 
     function renderizarGraficoPizza(idCanvas, rotulos, dados) {
-      if (instanciaGraficoPizza) {
-        instanciaGraficoPizza.destroy();
-      }
-
+      if (instanciaGraficoPizza) instanciaGraficoPizza.destroy();
       const ctx = document.getElementById(idCanvas).getContext('2d');
       instanciaGraficoPizza = new Chart(ctx, {
         type: 'doughnut',
         data: {
           labels: rotulos,
-          datasets: [{
-            data: dados,
-            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14']
-          }]
+          datasets: [{ data: dados, backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14'] }]
         },
-        options: {
-          responsive: true
-        }
+        options: { responsive: true }
       });
     }
 
     Papa.parse(NOME_ARQUIVO_CSV, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      encoding: "UTF-8",
+      download: true, header: true, skipEmptyLines: true, encoding: "UTF-8",
       complete: function(results) {
         if (results.data && results.data.length > 0) {
           dadosBrutosCSV = results.data;
