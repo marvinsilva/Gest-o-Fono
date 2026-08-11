@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Fonoaudiologia - HCPA</title>
   
-  <!-- Estilos visuais da página -->
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -26,36 +25,99 @@
       margin: 0;
     }
 
-    /* Container do Filtro */
+    /* Container do Filtro Customizado */
     .filter-container {
       background: #ffffff;
       padding: 15px 20px;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       margin-bottom: 25px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      position: relative;
     }
-    .filter-container label {
+    .filter-label {
       font-weight: bold;
       color: #004085;
       font-size: 14px;
+      margin-bottom: 8px;
+      display: block;
     }
-    .filter-container select {
-      padding: 8px;
+
+    /* Botão que abre o Dropdown */
+    .dropdown-btn {
+      width: 100%;
+      max-width: 400px;
+      padding: 10px 14px;
       border-radius: 6px;
       border: 1px solid #ced4da;
-      font-size: 13px;
-      outline: none;
       background-color: #fff;
-      height: 110px; /* Altura ideal para visualizar várias opções de uma vez */
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #333;
     }
-    .filter-hint {
-      font-size: 11px;
+    .dropdown-btn:after {
+      content: "▼";
+      font-size: 10px;
       color: #6c757d;
     }
-    
+
+    /* Painel Flutuante de Checkboxes */
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #ffffff;
+      min-width: 380px;
+      max-width: 450px;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.15);
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      z-index: 100;
+      margin-top: 5px;
+    }
+    .dropdown-content.show {
+      display: block;
+    }
+
+    /* Campo de Busca dentro do filtro */
+    .search-box {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 13px;
+    }
+
+    /* Lista com Scroll */
+    .checkbox-list {
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #333;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .checkbox-item:hover {
+      background-color: #f0f4f8;
+    }
+    .checkbox-item input {
+      cursor: pointer;
+    }
+
     /* Grid dos cartões de métricas (KPIs) */
     .kpi-grid {
       display: grid;
@@ -115,13 +177,26 @@
     <p class="sub">Painel demonstrativo baseado em dados extraídos via CSV</p>
   </header>
 
-  <!-- Filtro por Local/Área de Atendimento Multi-seleção -->
+  <!-- Filtro por Área de Atendimento com Checkboxes -->
   <div class="filter-container">
-    <label for="select-area">Filtrar por Área(s) de Atendimento:</label>
-    <select id="select-area" multiple onchange="aplicarFiltro()">
-      <option value="TODAS" selected>-- Todas as Áreas --</option>
-    </select>
-    <span class="filter-hint">💡 Segure a tecla <b>Ctrl</b> (ou <b>Cmd</b> no Mac) para selecionar ou desmarcar mais de uma área.</span>
+    <span class="filter-label">Filtrar por Área(s) de Atendimento:</span>
+    
+    <button id="btn-dropdown" class="dropdown-btn" onclick="alternarDropdown()">
+      <span id="btn-text">Todas as Áreas selecionadas</span>
+    </button>
+
+    <div id="dropdown-list" class="dropdown-content">
+      <input type="text" id="input-busca" class="search-box" placeholder="Pesquisar área..." onkeyup="filtrarListaOpcoes()">
+      
+      <div class="checkbox-list">
+        <label class="checkbox-item">
+          <input type="checkbox" id="chk-todos" checked onchange="marcarTodos(this)">
+          <b>-- Selecionar Todas --</b>
+        </label>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 4px 0;">
+        <div id="lista-checkboxes"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Cartões de Resumo (KPIs) -->
@@ -166,8 +241,36 @@
       return parseFloat(limpo);
     }
 
+    // Abre/fecha a caixa do menu flutuante
+    function alternarDropdown() {
+      document.getElementById('dropdown-list').classList.toggle('show');
+    }
+
+    // Fecha o menu se o usuário clicar fora dele
+    window.onclick = function(event) {
+      if (!event.target.matches('.dropdown-btn') && !event.target.closest('.dropdown-content')) {
+        const dropdowns = document.getElementsByClassName("dropdown-content");
+        for (let i = 0; i < dropdowns.length; i++) {
+          dropdowns[i].classList.remove('show');
+        }
+      }
+    }
+
+    // Filtra visualmente as opções da lista enquanto digita na busca
+    function filtrarListaOpcoes() {
+      const termo = document.getElementById('input-busca').value.toLowerCase();
+      const itens = document.querySelectorAll('#lista-checkboxes .checkbox-item');
+      
+      itens.forEach(item => {
+        const texto = item.textContent.toLowerCase();
+        item.style.display = texto.includes(termo) ? 'flex' : 'none';
+      });
+    }
+
+    // Preenche dinamicamente as caixas de seleção com as áreas lidas no CSV
     function preencherOpcoesDeFiltro(linhas) {
-      const select = document.getElementById('select-area');
+      const conteiner = document.getElementById('lista-checkboxes');
+      conteiner.innerHTML = '';
       const areasUnicas = new Set();
 
       linhas.forEach(linha => {
@@ -178,26 +281,53 @@
       });
 
       Array.from(areasUnicas).sort().forEach(area => {
-        const option = document.createElement('option');
-        option.value = area;
-        option.textContent = area;
-        select.appendChild(option);
+        const label = document.createElement('label');
+        label.className = 'checkbox-item';
+        
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.value = area;
+        chk.checked = true;
+        chk.className = 'chk-area';
+        chk.onchange = aplicarFiltro;
+
+        label.appendChild(chk);
+        label.appendChild(document.createTextNode(area));
+        conteiner.appendChild(label);
       });
     }
 
+    // Lógica do checkbox "-- Selecionar Todas --"
+    function marcarTodos(source) {
+      const checkboxes = document.querySelectorAll('.chk-area');
+      checkboxes.forEach(chk => chk.checked = source.checked);
+      aplicarFiltro();
+    }
+
     function aplicarFiltro() {
-      const select = document.getElementById('select-area');
-      
-      // Coleta todas as opções selecionadas pelo usuário
-      const selecoes = Array.from(select.selectedOptions).map(option => option.value);
+      const checkboxes = document.querySelectorAll('.chk-area');
+      const selecionadas = Array.from(checkboxes).filter(chk => chk.checked).map(chk => chk.value);
+      const chkTodos = document.getElementById('chk-todos');
+      const btnText = document.getElementById('btn-text');
 
+      // Atualiza o texto do botão
+      if (selecionadas.length === checkboxes.length) {
+        btnText.innerText = "Todas as Áreas selecionadas";
+        chkTodos.checked = true;
+      } else if (selecionadas.length === 0) {
+        btnText.innerText = "Nenhuma área selecionada";
+        chkTodos.checked = false;
+      } else {
+        btnText.innerText = `${selecionadas.length} área(s) selecionada(s)`;
+        chkTodos.checked = false;
+      }
+
+      // Filtra a base original de dados
       let dadosFiltrados = dadosBrutosCSV;
-
-      // Se a opção "TODAS" estiver selecionada ou nada for marcado, mantém todos os dados
-      if (!selecoes.includes('TODAS') && selecoes.length > 0) {
+      if (selecionadas.length < checkboxes.length) {
         dadosFiltrados = dadosBrutosCSV.filter(linha => {
           const local = linha['LOCAL_ATEND'];
-          return local && selecoes.includes(String(local).trim());
+          return local && selecionadas.includes(String(local).trim());
         });
       }
 
@@ -294,12 +424,12 @@
       });
     }
 
-    // Leitura com parâmetro ENCODING corrigido para resolver o bug de acentos do Excel
+    // Leitura com parâmetro ENCODING
     Papa.parse(NOME_ARQUIVO_CSV, {
       download: true,
       header: true,
       skipEmptyLines: true,
-      encoding: "ISO-8859-1", // Força o padrão de caracteres em português do Excel
+      encoding: "ISO-8859-1",
       complete: function(results) {
         if (results.data && results.data.length > 0) {
           dadosBrutosCSV = results.data;
