@@ -15,7 +15,7 @@
       color: #1c1e21;
     }
     header {
-      margin-bottom: 25px;
+      margin-bottom: 20px;
     }
     h1 {
       color: #004085;
@@ -24,6 +24,33 @@
     p.sub {
       color: #6c757d;
       margin: 0;
+    }
+
+    /* Container do Filtro */
+    .filter-container {
+      background: #ffffff;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .filter-container label {
+      font-weight: bold;
+      color: #004085;
+      font-size: 14px;
+    }
+    .filter-container select {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #ced4da;
+      font-size: 14px;
+      min-width: 250px;
+      outline: none;
+      background-color: #fff;
+      cursor: pointer;
     }
     
     /* Grid dos cartões de métricas (KPIs) */
@@ -74,9 +101,8 @@
     }
   </style>
 
-  <!-- Biblioteca PapaParse: Converte CSV em Objeto JS -->
+  <!-- Biblioteca PapaParse e Chart.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-  <!-- Biblioteca Chart.js: Gera os gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -86,10 +112,18 @@
     <p class="sub">Painel demonstrativo baseado em dados extraídos via CSV</p>
   </header>
 
+  <!-- Filtro por Local/Área de Atendimento -->
+  <div class="filter-container">
+    <label for="select-area">Filtrar por Área de Atendimento:</label>
+    <select id="select-area" onchange="aplicarFiltro()">
+      <option value="TODAS">Todas as Áreas</option>
+    </select>
+  </div>
+
   <!-- Cartões de Resumo (KPIs) -->
   <div class="kpi-grid">
     <div class="kpi-card">
-      <h3>Atendimentos Únicos</h3>
+      <h3>Pacientes Únicos</h3>
       <p id="kpi-total-unicos">-</p>
     </div>
     <div class="kpi-card" style="border-left-color: #28a745;">
@@ -97,7 +131,7 @@
       <p id="kpi-total-registros">-</p>
     </div>
     <div class="kpi-card" style="border-left-color: #ffc107;">
-      <h3>Tempo Médio de Espera</h3>
+      <h3>Tempo Médio de Resposta</h3>
       <p id="kpi-tempo-medio">-</p>
     </div>
   </div>
@@ -115,8 +149,58 @@
   </div>
 
   <script>
-    // Nome do arquivo CSV presente na raiz do repositório
-    const NOME_ARQUIVO_CSV = "RelatorioConsultoriaDeInternacaoFonoaudiologia_202608223.csv";
+    const NOME_ARQUIVO_CSV = "atendimentos.csv";
+    
+    // Variáveis globais para guardar as instâncias dos gráficos e o total de dados lidos
+    let dadosBrutosCSV = [];
+    let instanciaGraficoBarras = null;
+    let instanciaGraficoPizza = null;
+
+    // Converte vírgula do Excel em ponto para o JS calcular
+    function converterParaNumero(valor) {
+      if (!valor) return NaN;
+      if (typeof valor === 'number') return valor;
+      const limpo = String(valor).replace(',', '.').trim();
+      return parseFloat(limpo);
+    }
+
+    // Povoa o <select> com todas as áreas disponíveis no CSV
+    function preencherOpcoesDeFiltro(linhas) {
+      const select = document.getElementById('select-area');
+      const areasUnicas = new Set();
+
+      linhas.forEach(linha => {
+        const local = linha['LOCAL_ATEND'];
+        if (local && String(local).trim() !== '') {
+          areasUnicas.add(String(local).trim());
+        }
+      });
+
+      // Ordena alfabeticamente os nomes das áreas
+      Array.from(areasUnicas).sort().forEach(area => {
+        const option = document.createElement('option');
+        option.value = area;
+        option.textContent = area;
+        select.appendChild(option);
+      });
+    }
+
+    // Função disparada quando o usuário troca a seleção no menu
+    function aplicarFiltro() {
+      const areaSelecionada = document.getElementById('select-area').value;
+
+      let dadosFiltrados = dadosBrutosCSV;
+
+      if (areaSelecionada !== 'TODAS') {
+        dadosFiltrados = dadosBrutosCSV.filter(linha => {
+          const local = linha['LOCAL_ATEND'];
+          return local && String(local).trim() === areaSelecionada;
+        });
+      }
+
+      // Reprocessa os gráficos e indicadores usando só os dados filtrados
+      processarDadosCSV(dadosFiltrados);
+    }
 
     function processarDadosCSV(linhas) {
       const idsProcessados = new Set();
@@ -126,51 +210,57 @@
       let qtdEsperaValida = 0;
 
       linhas.forEach(linha => {
-        // AJUSTE AQUI OS NOMES ENTRE ASPAS DE ACORDO COM O SEU CSV:
-        const idAtendimento = linha['NOME_PACIENTE']
-        const consultor     = linha['CONSULTOR']
+        const idAtendimento = linha['NOME_PACIENTE'];
+        const consultor     = linha['CONSULTOR'];
         const turno         = linha['TURNO'];
-        const tempoEspera   = parseFloat(linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS']);
+        
+        const valorTempo = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
+        const tempoEspera = converterParaNumero(valorTempo);
 
-        if (!idAtendimento) return; // descarta linhas vazias
+        if (!idAtendimento || String(idAtendimento).trim() === '') return;
 
-        // 1. Contagem desconsiderando duplicados
+        // 1. Pacientes Únicos
         idsProcessados.add(String(idAtendimento).trim());
 
-        // 2. Contagem por Consultor
-        if (consultor) {
-          const nomeConsultor = consultor.trim();
+        // 2. Por Consultor
+        if (consultor && String(consultor).trim() !== '') {
+          const nomeConsultor = String(consultor).trim();
           consultores[nomeConsultor] = (consultores[nomeConsultor] || 0) + 1;
         }
 
-        // 3. Contagem por Turno
-        if (turno) {
-          const nomeTurno = turno.trim();
+        // 3. Por Turno
+        if (turno && String(turno).trim() !== '') {
+          const nomeTurno = String(turno).trim();
           turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
         }
 
-        // 4. Média de tempo de espera
+        // 4. Média de tempo
         if (!isNaN(tempoEspera)) {
           somaEspera += tempoEspera;
           qtdEsperaValida++;
         }
       });
 
-      // Atualiza os cartões com os resultados dos cálculos
+      // Atualiza os cartões de indicadores
       document.getElementById('kpi-total-unicos').innerText = idsProcessados.size;
       document.getElementById('kpi-total-registros').innerText = linhas.length;
       
       const mediaFinal = qtdEsperaValida > 0 ? (somaEspera / qtdEsperaValida).toFixed(1) : 0;
-      document.getElementById('kpi-tempo-medio').innerText = `${mediaFinal} min`;
+      document.getElementById('kpi-tempo-medio').innerText = `${mediaFinal} h`;
 
-      // Renderiza os gráficos
+      // Renderiza/Atualiza os gráficos
       renderizarGraficoBarras('graficoConsultores', Object.keys(consultores), Object.values(consultores), 'Atendimentos');
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
     }
 
     function renderizarGraficoBarras(idCanvas, rotulos, dados, legenda) {
+      // Destrói o gráfico antigo antes de criar o novo (necessário no filtro)
+      if (instanciaGraficoBarras) {
+        instanciaGraficoBarras.destroy();
+      }
+
       const ctx = document.getElementById(idCanvas).getContext('2d');
-      new Chart(ctx, {
+      instanciaGraficoBarras = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: rotulos,
@@ -189,14 +279,19 @@
     }
 
     function renderizarGraficoPizza(idCanvas, rotulos, dados) {
+      // Destrói o gráfico antigo antes de criar o novo (necessário no filtro)
+      if (instanciaGraficoPizza) {
+        instanciaGraficoPizza.destroy();
+      }
+
       const ctx = document.getElementById(idCanvas).getContext('2d');
-      new Chart(ctx, {
+      instanciaGraficoPizza = new Chart(ctx, {
         type: 'doughnut',
         data: {
           labels: rotulos,
           datasets: [{
             data: dados,
-            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1']
+            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14']
           }]
         },
         options: {
@@ -205,16 +300,17 @@
       });
     }
 
-    // Lê o arquivo CSV enviado para o GitHub
+    // Leitura Inicial do CSV
     Papa.parse(NOME_ARQUIVO_CSV, {
       download: true,
       header: true,
       skipEmptyLines: true,
       complete: function(results) {
-        processarDadosCSV(results.data);
-      },
-      error: function(err) {
-        console.error("Erro ao ler arquivo CSV:", err);
+        if (results.data && results.data.length > 0) {
+          dadosBrutosCSV = results.data; // Guarda os dados originais
+          preencherOpcoesDeFiltro(dadosBrutosCSV); // Cria as opções do menu
+          processarDadosCSV(dadosBrutosCSV); // Exibe o estado inicial (todas as áreas)
+        }
       }
     });
   </script>
