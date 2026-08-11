@@ -192,7 +192,7 @@
     /* Grid dos gráficos menores */
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 25px;
     }
     .chart-card {
@@ -280,10 +280,17 @@
 
   <!-- Área de Gráficos Secundários -->
   <div class="charts-grid">
+    <!-- GRÁFICO: Nível Assistencial -->
+    <div class="chart-card">
+      <h2>Perfil de Complexidade (Nível Assistencial)</h2>
+      <canvas id="graficoNivelAssistencial"></canvas>
+    </div>
+
     <div class="chart-card">
       <h2>Atendimentos por Consultor</h2>
       <canvas id="graficoConsultores"></canvas>
     </div>
+
     <div class="chart-card">
       <h2>Distribuição por Turno</h2>
       <canvas id="graficoTurnos"></canvas>
@@ -294,11 +301,12 @@
     const NOME_ARQUIVO_CSV = "RelatorioConsultoriaDeInternacaoFonoaudiologia_202608223.csv";
     
     let dadosBrutosCSV = [];
-    let periodoSelecionado = 'TODOS'; // Valor padrão
+    let periodoSelecionado = 'TODOS';
     
     let instanciaGraficoBarras = null;
     let instanciaGraficoPizza = null;
     let instanciaGraficoLinhaTempo = null;
+    let instanciaGraficoNivel = null;
 
     function converterParaNumero(valor) {
       if (!valor) return NaN;
@@ -330,6 +338,37 @@
     function formatarDataExibicao(dataISO) {
       const partes = dataISO.split('-');
       return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    // Função de Extração Direta do Nível Assistencial na coluna RESPOSTA
+    function extrairNivelAssistencial(textoResposta) {
+      if (!textoResposta || String(textoResposta).trim() === '') return 'Não Informado';
+      
+      // Padroniza texto: minúsculo e sem acentos
+      const texto = String(textoResposta)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      // Busca por "nivel assistencial" no texto
+      const posicaoRotulo = texto.indexOf("nivel assistencial");
+      
+      if (posicaoRotulo !== -1) {
+        // Pega os 50 caracteres que vêm logo após a expressão "nivel assistencial"
+        const trechoPosterior = texto.substring(posicaoRotulo, posicaoRotulo + 50);
+
+        if (trechoPosterior.includes('alto') || trechoPosterior.includes('intensivo')) {
+          return 'Alto';
+        }
+        if (trechoPosterior.includes('medio')) {
+          return 'Médio';
+        }
+        if (trechoPosterior.includes('baixo') || trechoPosterior.includes('minimo')) {
+          return 'Baixo';
+        }
+      }
+
+      return 'Não Informado';
     }
 
     function alternarDropdown() {
@@ -390,14 +429,10 @@
       aplicarFiltro();
     }
 
-    // Função ativada pelos botões de filtro de tempo
     function definirFiltroPeriodo(opcao, elementoBotao) {
       periodoSelecionado = opcao;
-      
-      // Atualiza estilo visual dos botões
       document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
       elementoBotao.classList.add('active');
-
       aplicarFiltro();
     }
 
@@ -433,6 +468,8 @@
       const idsProcessados = new Set();
       const consultores = {};
       const turnos = {};
+      const niveisAssistenciais = { 'Alto': 0, 'Médio': 0, 'Baixo': 0, 'Não Informado': 0 };
+
       let somaEspera = 0;
       let qtdEsperaValida = 0;
 
@@ -444,12 +481,17 @@
         const idAtendimento = linha['NOME_PACIENTE'];
         const consultor     = linha['CONSULTOR'];
         const turno         = linha['TURNO'];
+        const textoResposta = linha['RESPOSTA'];
         
         const valorTempo = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
         const tempoEspera = converterParaNumero(valorTempo);
 
         const dataSolic = extrairDataISO(linha['SOLIC_CONSULTORIA']);
         const dataResp  = extrairDataISO(linha['DTHR_RESPOSTA']);
+
+        // Extrai Nível Assistencial da Evolução (Coluna RESPOSTA)
+        const nivel = extrairNivelAssistencial(textoResposta);
+        niveisAssistenciais[nivel] = (niveisAssistenciais[nivel] || 0) + 1;
 
         if (dataSolic) {
           contagemSolicitacoesPorDia[dataSolic] = (contagemSolicitacoesPorDia[dataSolic] || 0) + 1;
@@ -492,7 +534,6 @@
       let datasOrdenadas = Array.from(conjuntoTodasDatas).sort();
 
       if (datasOrdenadas.length > 0 && periodoSelecionado !== 'TODOS') {
-        // Encontra a maior data na base para servir de âncora
         const dataMaisRecenteISO = datasOrdenadas[datasOrdenadas.length - 1];
         const dataAncora = new Date(dataMaisRecenteISO + "T00:00:00");
         let dataLimite = new Date(dataAncora);
@@ -515,6 +556,7 @@
       const vetorRespostas = datasOrdenadas.map(dataISO => contagemRespostasPorDia[dataISO] || 0);
 
       renderizarGraficoLinhaTempo(rotulosDatas, vetorSolicitacoes, vetorRespostas);
+      renderizarGraficoNivelAssistencial(niveisAssistenciais);
       renderizarGraficoBarras('graficoConsultores', Object.keys(consultores), Object.values(consultores), 'Atendimentos');
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
     }
@@ -560,14 +602,34 @@
             }
           },
           scales: {
-            x: {
-              title: { display: true, text: 'Data' }
-            },
-            y: {
-              title: { display: true, text: 'Quantidade' },
-              beginAtZero: true
-            }
+            x: { title: { display: true, text: 'Data' } },
+            y: { title: { display: true, text: 'Quantidade' }, beginAtZero: true }
           }
+        }
+      });
+    }
+
+    function renderizarGraficoNivelAssistencial(dadosNiveis) {
+      if (instanciaGraficoNivel) {
+        instanciaGraficoNivel.destroy();
+      }
+
+      const ctx = document.getElementById('graficoNivelAssistencial').getContext('2d');
+      instanciaGraficoNivel = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Alto', 'Médio', 'Baixo', 'Não Informado'],
+          datasets: [{
+            label: 'Atendimentos',
+            data: [dadosNiveis['Alto'], dadosNiveis['Médio'], dadosNiveis['Baixo'], dadosNiveis['Não Informado']],
+            backgroundColor: ['#dc3545', '#ffc107', '#28a745', '#6c757d'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
         }
       });
     }
