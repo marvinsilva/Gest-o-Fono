@@ -340,33 +340,39 @@
       return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
-    // Função de Extração Direta do Nível Assistencial na coluna RESPOSTA
+    // Função Robustecida com Regex para Extração do Nível Assistencial
     function extrairNivelAssistencial(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return 'Não Informado';
       
-      // Padroniza texto: minúsculo e sem acentos
-      const texto = String(textoResposta)
+      // Normaliza texto: remove acentos, converte para minúsculo e substitui quebras de linha/múltiplos espaços por espaço único
+      const textoLimpo = String(textoResposta)
         .toLowerCase()
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ");
 
-      // Busca por "nivel assistencial" no texto
-      const posicaoRotulo = texto.indexOf("nivel assistencial");
-      
-      if (posicaoRotulo !== -1) {
-        // Pega os 50 caracteres que vêm logo após a expressão "nivel assistencial"
-        const trechoPosterior = texto.substring(posicaoRotulo, posicaoRotulo + 50);
+      // Regex para capturar a expressão "nivel assistencial" e o trecho seguinte
+      const regexNivel = /nivel\s+assistencial\s*[:\-=]?\s*([a-z\s]+)/i;
+      const match = textoLimpo.match(regexNivel);
 
-        if (trechoPosterior.includes('alto') || trechoPosterior.includes('intensivo')) {
+      if (match && match[1]) {
+        const trechoEncontrado = match[1].substring(0, 40); // analisa os 40 caracteres seguintes
+
+        if (trechoEncontrado.includes('alto') || trechoEncontrado.includes('intensivo')) {
           return 'Alto';
         }
-        if (trechoPosterior.includes('medio')) {
+        if (trechoEncontrado.includes('medio') || trechoEncontrado.includes('intermediario')) {
           return 'Médio';
         }
-        if (trechoPosterior.includes('baixo') || trechoPosterior.includes('minimo')) {
+        if (trechoEncontrado.includes('baixo') || trechoEncontrado.includes('minimo')) {
           return 'Baixo';
         }
       }
+
+      // Fallback: se não achar a expressão exata "nivel assistencial", busca termos isolados comuns
+      if (textoLimpo.includes('nivel assistencial medio') || textoLimpo.includes('assistencial medio')) return 'Médio';
+      if (textoLimpo.includes('nivel assistencial alto') || textoLimpo.includes('assistencial alto') || textoLimpo.includes('assistencial intensivo')) return 'Alto';
+      if (textoLimpo.includes('nivel assistencial baixo') || textoLimpo.includes('assistencial baixo') || textoLimpo.includes('assistencial minimo')) return 'Baixo';
 
       return 'Não Informado';
     }
@@ -489,7 +495,7 @@
         const dataSolic = extrairDataISO(linha['SOLIC_CONSULTORIA']);
         const dataResp  = extrairDataISO(linha['DTHR_RESPOSTA']);
 
-        // Extrai Nível Assistencial da Evolução (Coluna RESPOSTA)
+        // Extrai Nível Assistencial com Regex
         const nivel = extrairNivelAssistencial(textoResposta);
         niveisAssistenciais[nivel] = (niveisAssistenciais[nivel] || 0) + 1;
 
