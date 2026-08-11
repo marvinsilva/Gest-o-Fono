@@ -127,10 +127,10 @@
 
       linhas.forEach(linha => {
         // AJUSTE AQUI OS NOMES ENTRE ASPAS DE ACORDO COM O SEU CSV:
-        const idAtendimento = linha['ID_Atendimento'] || linha['ID'] || linha['Atendimento']; 
-        const consultor     = linha['Consultor'] || linha['Profissional'];
-        const turno         = linha['Turno'];
-        const tempoEspera   = parseFloat(linha['Tempo_Espera_Minutos'] || linha['Tempo_Espera']);
+        const idAtendimento = linha['NOME_PACIENTE']
+        const consultor     = linha['CONSULTOR']
+        const turno         = linha['TURNO'];
+        const tempoEspera   = parseFloat(linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS']);
 
         if (!idAtendimento) return; // descarta linhas vazias
 
