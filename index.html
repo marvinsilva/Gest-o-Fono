@@ -555,7 +555,13 @@
 
       renderizarGraficoLinhaTempo(rotulosDatas, vetorSolicitacoes, vetorRespostas);
       renderizarGraficoNivelAssistencial(niveisAssistenciais);
-      renderizarGraficoBarras('graficoConsultores', Object.keys(consultores), Object.values(consultores), 'Atendimentos');
+      
+      // ALTERAÇÃO FEITA AQUI: Ordenando os consultores do maior para o menor
+      const consultoresOrdenados = Object.entries(consultores).sort((a, b) => b[1] - a[1]);
+      const rotulosConsultores = consultoresOrdenados.map(item => item[0]);
+      const dadosConsultores = consultoresOrdenados.map(item => item[1]);
+      
+      renderizarGraficoBarras('graficoConsultores', rotulosConsultores, dadosConsultores, 'Atendimentos');
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
     }
 
@@ -650,6 +656,7 @@
           }]
         },
         options: {
+          indexAxis: 'y', // ALTERAÇÃO FEITA AQUI: Deixa o gráfico de barras horizontal
           responsive: true,
           plugins: { legend: { display: false } }
         }
