@@ -358,13 +358,13 @@
       if (match && match[1]) {
         const trechoEncontrado = match[1].substring(0, 40); // analisa os 40 caracteres seguintes
 
-        if (trechoEncontrado.includes('alto') || trechoEncontrado.includes('intensivo')) {
+        if (trechoEncontrado.includes('alto')) {
           return 'Alto';
         }
-        if (trechoEncontrado.includes('medio') || trechoEncontrado.includes('intermediario')) {
+        if (trechoEncontrado.includes('medio') || trechoEncontrado.includes('médio')) {
           return 'Médio';
         }
-        if (trechoEncontrado.includes('baixo') || trechoEncontrado.includes('minimo')) {
+        if (trechoEncontrado.includes('baixo')) {
           return 'Baixo';
         }
       }
