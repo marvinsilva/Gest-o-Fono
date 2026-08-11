@@ -352,7 +352,7 @@
         .replace(/\s+/g, " ");
 
       // Regex para capturar a expressão "nivel assistencial" e o trecho seguinte
-      const regexNivel = /[nN][íi]vel\s+[aA]ssistencial\s*[:\-=]?\s*([a-zé\s]+);
+      const regexNivel = /[nN][íi]vel\s+[aA]ssistencial\s*[:\-=]?\s*([a-zé\s]+)/i;
       const match = textoLimpo.match(regexNivel);
 
       if (match && match[1]) {
