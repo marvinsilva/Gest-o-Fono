@@ -183,10 +183,9 @@
       border-color: #0056b3;
     }
 
-    /* Container especial para permitir Scroll caso haja muitos consultores */
     .scroll-area-y {
       width: 100%;
-      max-height: 400px; /* Altura máxima visível antes de criar barra de rolagem */
+      max-height: 400px;
       overflow-y: auto;
       overflow-x: hidden;
       padding-right: 10px;
@@ -194,7 +193,7 @@
 
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 25px;
     }
     .chart-card {
@@ -272,24 +271,28 @@
     </div>
   </div>
 
-  <!-- Gráfico de Consultores com Altura Dinâmica e Scroll -->
   <div class="full-width-card">
     <h2>Atendimentos por Consultor</h2>
-    
-    <!-- Div que cria a barra de rolagem se necessário -->
     <div class="scroll-area-y">
-      <!-- Div cuja altura será definida pelo JavaScript dependendo do número de pessoas -->
       <div id="wrapperGraficoConsultores" style="position: relative; width: 100%;">
         <canvas id="graficoConsultores"></canvas>
       </div>
     </div>
   </div>
 
+  <!-- ATENÇÃO: Nova Grade com 3 gráficos agora -->
   <div class="charts-grid">
+    <!-- Novo Gráfico de Solicitantes -->
     <div class="chart-card">
-      <h2>Perfil de Complexidade (Nível Assistencial)</h2>
+      <h2>Perfil do Solicitante</h2>
+      <canvas id="graficoSolicitantes"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <h2>Perfil de Complexidade</h2>
       <canvas id="graficoNivelAssistencial"></canvas>
     </div>
+
     <div class="chart-card">
       <h2>Distribuição por Turno</h2>
       <canvas id="graficoTurnos"></canvas>
@@ -306,6 +309,7 @@
     let instanciaGraficoPizza = null;
     let instanciaGraficoLinhaTempo = null;
     let instanciaGraficoNivel = null;
+    let instanciaGraficoSolicitantes = null; // Nova instância
 
     function converterParaNumero(valor) {
       if (!valor) return NaN;
@@ -447,6 +451,9 @@
       const consultores = {};
       const turnos = {};
       const niveisAssistenciais = { 'Alto': 0, 'Médio': 0, 'Baixo': 0, 'Não Informado': 0 };
+      
+      // NOVA VARIÁVEL: Contadores para Solicitantes
+      const solicitantes = { 'Médicos': 0, 'Enfermeiros': 0, 'Outros/Não Info': 0 };
 
       let somaEspera = 0;
       let qtdEsperaValida = 0;
@@ -459,13 +466,28 @@
         const consultor     = linha['CONSULTOR'];
         const turno         = linha['TURNO'];
         const textoResposta = linha['RESPOSTA'];
-        const valorTempo = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
-        const tempoEspera = converterParaNumero(valorTempo);
-        const dataSolic = extrairDataISO(linha['SOLIC_CONSULTORIA']);
-        const dataResp  = extrairDataISO(linha['DTHR_RESPOSTA']);
-        const nivel = extrairNivelAssistencial(textoResposta);
+        const conselho      = linha['CONSELHO_SOLIC']; // <-- Nova coluna lida
+        const valorTempo    = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
+        const tempoEspera   = converterParaNumero(valorTempo);
+        const dataSolic     = extrairDataISO(linha['SOLIC_CONSULTORIA']);
+        const dataResp      = extrairDataISO(linha['DTHR_RESPOSTA']);
+        const nivel         = extrairNivelAssistencial(textoResposta);
         
         niveisAssistenciais[nivel] = (niveisAssistenciais[nivel] || 0) + 1;
+
+        // LÓGICA DE SOLICITANTES (Médico x Enfermeiro)
+        if (conselho && typeof conselho === 'string') {
+          const conselhoUpper = conselho.toUpperCase();
+          if (conselhoUpper.includes('CREMERS')) {
+            solicitantes['Médicos']++;
+          } else if (conselhoUpper.includes('COREN')) {
+            solicitantes['Enfermeiros']++;
+          } else {
+            solicitantes['Outros/Não Info']++;
+          }
+        } else {
+          solicitantes['Outros/Não Info']++;
+        }
 
         if (dataSolic) {
           contagemSolicitacoesPorDia[dataSolic] = (contagemSolicitacoesPorDia[dataSolic] || 0) + 1;
@@ -475,6 +497,7 @@
           contagemRespostasPorDia[dataResp] = (contagemRespostasPorDia[dataResp] || 0) + 1;
           conjuntoTodasDatas.add(dataResp);
         }
+        
         if (!idAtendimento || String(idAtendimento).trim() === '') return;
         idsProcessados.add(String(idAtendimento).trim());
 
@@ -519,16 +542,19 @@
       const vetorSolicitacoes = datasOrdenadas.map(dataISO => contagemSolicitacoesPorDia[dataISO] || 0);
       const vetorRespostas = datasOrdenadas.map(dataISO => contagemRespostasPorDia[dataISO] || 0);
 
+      // Renderiza todos os gráficos
       renderizarGraficoLinhaTempo(rotulosDatas, vetorSolicitacoes, vetorRespostas);
       renderizarGraficoNivelAssistencial(niveisAssistenciais);
       
-      // ALTERAÇÃO: Removido o .sort(), mantendo a ordem original dos dados
       const consultoresOriginais = Object.entries(consultores);
       const rotulosConsultores = consultoresOriginais.map(item => item[0]);
       const dadosConsultores = consultoresOriginais.map(item => item[1]);
-      
       renderizarGraficoBarras('graficoConsultores', rotulosConsultores, dadosConsultores, 'Atendimentos');
+      
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
+      
+      // Chama a renderização do novo gráfico de Solicitantes
+      renderizarGraficoSolicitantes(Object.keys(solicitantes), Object.values(solicitantes));
     }
 
     function renderizarGraficoLinhaTempo(labelsDatas, dadosSolicitados, dadosAtendidos) {
@@ -563,8 +589,6 @@
     function renderizarGraficoBarras(idCanvas, rotulos, dados, legenda) {
       if (instanciaGraficoBarras) instanciaGraficoBarras.destroy();
       
-      // Cálculo Inteligente da altura: Garante 30 pixels de altura para cada nome/barra.
-      // Assim, se houver 30 consultores, ele cria um gráfico de 900px, e o usuário pode rolar a tela.
       const alturaIdeal = Math.max(300, rotulos.length * 30);
       document.getElementById('wrapperGraficoConsultores').style.height = alturaIdeal + "px";
 
@@ -582,9 +606,7 @@
           plugins: { legend: { display: false } },
           scales: {
             y: {
-              ticks: {
-                autoSkip: false // ISSO OBRIGA O CHART.JS A MOSTRAR TODOS OS NOMES, SEM ESCONDER NINGUÉM
-              }
+              ticks: { autoSkip: false }
             }
           }
         }
@@ -599,6 +621,23 @@
         data: {
           labels: rotulos,
           datasets: [{ data: dados, backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14'] }]
+        },
+        options: { responsive: true }
+      });
+    }
+
+    // NOVA FUNÇÃO: Renderizar o Gráfico de Solicitantes
+    function renderizarGraficoSolicitantes(rotulos, dados) {
+      if (instanciaGraficoSolicitantes) instanciaGraficoSolicitantes.destroy();
+      const ctx = document.getElementById('graficoSolicitantes').getContext('2d');
+      instanciaGraficoSolicitantes = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: rotulos,
+          datasets: [{ 
+            data: dados, 
+            backgroundColor: ['#17a2b8', '#6f42c1', '#ced4da'] // Azul claro para médico, Roxo para Enfermeiro, Cinza para outros
+          }]
         },
         options: { responsive: true }
       });
