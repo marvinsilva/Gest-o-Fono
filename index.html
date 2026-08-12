@@ -210,8 +210,11 @@
     }
   </style>
 
+  <!-- Bibliotecas Base -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Plugin para as labels de porcentagem -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 </head>
 <body>
 
@@ -280,9 +283,7 @@
     </div>
   </div>
 
-  <!-- ATENÇÃO: Nova Grade com 3 gráficos agora -->
   <div class="charts-grid">
-    <!-- Novo Gráfico de Solicitantes -->
     <div class="chart-card">
       <h2>Perfil do Solicitante</h2>
       <canvas id="graficoSolicitantes"></canvas>
@@ -300,6 +301,9 @@
   </div>
 
   <script>
+    // Registra o plugin de porcentagens globalmente no Chart.js
+    Chart.register(ChartDataLabels);
+
     const NOME_ARQUIVO_CSV = "DADOS.csv";
     
     let dadosBrutosCSV = [];
@@ -309,7 +313,7 @@
     let instanciaGraficoPizza = null;
     let instanciaGraficoLinhaTempo = null;
     let instanciaGraficoNivel = null;
-    let instanciaGraficoSolicitantes = null; // Nova instância
+    let instanciaGraficoSolicitantes = null; 
 
     function converterParaNumero(valor) {
       if (!valor) return NaN;
@@ -451,8 +455,6 @@
       const consultores = {};
       const turnos = {};
       const niveisAssistenciais = { 'Alto': 0, 'Médio': 0, 'Baixo': 0, 'Não Informado': 0 };
-      
-      // NOVA VARIÁVEL: Contadores para Solicitantes
       const solicitantes = { 'Médicos': 0, 'Enfermeiros': 0, 'Outros/Não Info': 0 };
 
       let somaEspera = 0;
@@ -466,7 +468,7 @@
         const consultor     = linha['CONSULTOR'];
         const turno         = linha['TURNO'];
         const textoResposta = linha['RESPOSTA'];
-        const conselho      = linha['CONSELHO_SOLIC']; // <-- Nova coluna lida
+        const conselho      = linha['CONSELHO_SOLIC'];
         const valorTempo    = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
         const tempoEspera   = converterParaNumero(valorTempo);
         const dataSolic     = extrairDataISO(linha['SOLIC_CONSULTORIA']);
@@ -475,7 +477,6 @@
         
         niveisAssistenciais[nivel] = (niveisAssistenciais[nivel] || 0) + 1;
 
-        // LÓGICA DE SOLICITANTES (Médico x Enfermeiro)
         if (conselho && typeof conselho === 'string') {
           const conselhoUpper = conselho.toUpperCase();
           if (conselhoUpper.includes('CREMERS')) {
@@ -542,7 +543,6 @@
       const vetorSolicitacoes = datasOrdenadas.map(dataISO => contagemSolicitacoesPorDia[dataISO] || 0);
       const vetorRespostas = datasOrdenadas.map(dataISO => contagemRespostasPorDia[dataISO] || 0);
 
-      // Renderiza todos os gráficos
       renderizarGraficoLinhaTempo(rotulosDatas, vetorSolicitacoes, vetorRespostas);
       renderizarGraficoNivelAssistencial(niveisAssistenciais);
       
@@ -552,8 +552,6 @@
       renderizarGraficoBarras('graficoConsultores', rotulosConsultores, dadosConsultores, 'Atendimentos');
       
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
-      
-      // Chama a renderização do novo gráfico de Solicitantes
       renderizarGraficoSolicitantes(Object.keys(solicitantes), Object.values(solicitantes));
     }
 
@@ -569,7 +567,14 @@
             { label: 'Atendimentos Realizados', data: dadosAtendidos, borderColor: '#28a745', backgroundColor: 'rgba(40, 167, 69, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }
           ]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: false, 
+          plugins: { 
+            legend: { position: 'top' },
+            datalabels: { display: false } // Desativa as porcentagens neste gráfico
+          } 
+        }
       });
     }
 
@@ -582,7 +587,26 @@
           labels: ['Alto', 'Médio', 'Baixo', 'Não Informado'],
           datasets: [{ data: [dadosNiveis['Alto'], dadosNiveis['Médio'], dadosNiveis['Baixo'], dadosNiveis['Não Informado']], backgroundColor: ['#dc3545', '#ffc107', '#28a745', '#6c757d'], borderRadius: 6 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: { 
+          responsive: true, 
+          layout: { padding: { top: 25 } }, // Dá espaço pro texto não cortar no topo
+          plugins: { 
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              color: '#333',
+              font: { weight: 'bold', size: 12 },
+              formatter: (value, ctx) => {
+                let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                if (sum === 0 || value === 0) return '';
+                let perc = (value * 100 / sum);
+                return parseFloat(perc.toFixed(1)) + "%";
+              }
+            }
+          }, 
+          scales: { y: { beginAtZero: true } } 
+        }
       });
     }
 
@@ -603,7 +627,10 @@
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false, 
-          plugins: { legend: { display: false } },
+          plugins: { 
+            legend: { display: false },
+            datalabels: { display: false } // Desativa as porcentagens neste gráfico
+          },
           scales: {
             y: {
               ticks: { autoSkip: false }
@@ -622,11 +649,25 @@
           labels: rotulos,
           datasets: [{ data: dados, backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14'] }]
         },
-        options: { responsive: true }
+        options: { 
+          responsive: true,
+          plugins: {
+            datalabels: {
+              color: '#fff',
+              font: { weight: 'bold', size: 12 },
+              formatter: (value, ctx) => {
+                let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                if (sum === 0 || value === 0) return '';
+                let perc = (value * 100 / sum);
+                if (perc < 4) return ''; // Esconde em fatias muito pequenas
+                return parseFloat(perc.toFixed(1)) + "%";
+              }
+            }
+          }
+        }
       });
     }
 
-    // NOVA FUNÇÃO: Renderizar o Gráfico de Solicitantes
     function renderizarGraficoSolicitantes(rotulos, dados) {
       if (instanciaGraficoSolicitantes) instanciaGraficoSolicitantes.destroy();
       const ctx = document.getElementById('graficoSolicitantes').getContext('2d');
@@ -636,10 +677,25 @@
           labels: rotulos,
           datasets: [{ 
             data: dados, 
-            backgroundColor: ['#17a2b8', '#6f42c1', '#ced4da'] // Azul claro para médico, Roxo para Enfermeiro, Cinza para outros
+            backgroundColor: ['#17a2b8', '#6f42c1', '#ced4da']
           }]
         },
-        options: { responsive: true }
+        options: { 
+          responsive: true,
+          plugins: {
+            datalabels: {
+              color: '#fff',
+              font: { weight: 'bold', size: 12 },
+              formatter: (value, ctx) => {
+                let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                if (sum === 0 || value === 0) return '';
+                let perc = (value * 100 / sum);
+                if (perc < 4) return ''; // Esconde em fatias muito pequenas
+                return parseFloat(perc.toFixed(1)) + "%";
+              }
+            }
+          }
+        }
       });
     }
 
