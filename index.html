@@ -371,13 +371,12 @@
       return 'Não Informado';
     }
 
-    // Função de extração de nota via Regex para FOIS e ASHA
     function extrairNotaEscala(textoResposta, escala) {
-      if (!textoResposta || String(textoResposta).trim() === '') return null;
-      const regex = new RegExp(`${escala}[^\\d]*([1-7])`, 'i');
-      const match = String(textoResposta).match(regex);
-      return match ? parseInt(match[1], 10) : null;
-    }
+  if (!textoResposta || String(textoResposta).trim() === '') return null;
+  const regex = new RegExp(`${escala}[^\\d\\/\\.\\n]{0,15}\\b([1-7])\\b`, 'i');
+  const match = String(textoResposta).match(regex);
+  return match ? parseInt(match[1], 10) : null;
+}
     
     function alternarDropdown() {
       document.getElementById('dropdown-list').classList.toggle('show');
