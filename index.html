@@ -112,7 +112,7 @@
 
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 20px;
       margin-bottom: 30px;
     }
@@ -251,8 +251,16 @@
       <p id="kpi-total-registros">-</p>
     </div>
     <div class="kpi-card" style="border-left-color: #ffc107;">
-      <h3>Tempo Médio de Resposta</h3>
+      <h3>Tempo Médio Resposta</h3>
       <p id="kpi-tempo-medio">-</p>
+    </div>
+    <div class="kpi-card" style="border-left-color: #6f42c1;">
+      <h3>Evolução Média FOIS (Δ)</h3>
+      <p id="kpi-delta-fois">-</p>
+    </div>
+    <div class="kpi-card" style="border-left-color: #17a2b8;">
+      <h3>Evolução Média ASHA (Δ)</h3>
+      <p id="kpi-delta-asha">-</p>
     </div>
   </div>
 
@@ -301,7 +309,6 @@
   </div>
 
   <script>
-    // Registra o plugin de porcentagens globalmente no Chart.js
     Chart.register(ChartDataLabels);
 
     const NOME_ARQUIVO_CSV = "DADOS.csv";
@@ -361,6 +368,14 @@
         if (trechoEncontrado.includes('baixo')) return 'Baixo';
       }
       return 'Não Informado';
+    }
+
+    // Função de extração de nota via Regex para FOIS e ASHA
+    function extrairNotaEscala(textoResposta, escala) {
+      if (!textoResposta || String(textoResposta).trim() === '') return null;
+      const regex = new RegExp(`${escala}[^\\d]*([1-7])`, 'i');
+      const match = String(textoResposta).match(regex);
+      return match ? parseInt(match[1], 10) : null;
     }
     
     function alternarDropdown() {
@@ -463,6 +478,9 @@
       const contagemRespostasPorDia = {};
       const conjuntoTodasDatas = new Set();
 
+      // Estrutura para calcular os Deltas de FOIS e ASHA por Paciente
+      const historicoPacientes = {};
+
       linhas.forEach(linha => {
         const idAtendimento = linha['NOME_PACIENTE'];
         const consultor     = linha['CONSULTOR'];
@@ -500,7 +518,19 @@
         }
         
         if (!idAtendimento || String(idAtendimento).trim() === '') return;
-        idsProcessados.add(String(idAtendimento).trim());
+        const idPac = String(idAtendimento).trim();
+        idsProcessados.add(idPac);
+
+        // Agrupamento de FOIS e ASHA para cálculo posterior
+        const dataRef = dataResp || dataSolic;
+        if (dataRef) {
+          if (!historicoPacientes[idPac]) historicoPacientes[idPac] = [];
+          historicoPacientes[idPac].push({
+            data: new Date(dataRef + "T00:00:00"),
+            fois: extrairNotaEscala(textoResposta, 'FOIS'),
+            asha: extrairNotaEscala(textoResposta, 'ASHA')
+          });
+        }
 
         if (consultor && String(consultor).trim() !== '') {
           const nomeConsultor = String(consultor).trim();
@@ -516,10 +546,38 @@
         }
       });
 
+      // Cálculo dos Deltas (Última nota - Primeira nota) por paciente
+      const deltasFOIS = [];
+      const deltasASHA = [];
+
+      Object.values(historicoPacientes).forEach(registros => {
+        // Ordena cronologicamente
+        registros.sort((a, b) => a.data - b.data);
+
+        // Deltas FOIS
+        const comFOIS = registros.filter(r => r.fois !== null);
+        if (comFOIS.length >= 2) {
+          deltasFOIS.push(comFOIS[comFOIS.length - 1].fois - comFOIS[0].fois);
+        }
+
+        // Deltas ASHA
+        const comASHA = registros.filter(r => r.asha !== null);
+        if (comASHA.length >= 2) {
+          deltasASHA.push(comASHA[comASHA.length - 1].asha - comASHA[0].asha);
+        }
+      });
+
+      const mediaFOIS = deltasFOIS.length > 0 ? (deltasFOIS.reduce((a, b) => a + b, 0) / deltasFOIS.length).toFixed(2) : null;
+      const mediaASHA = deltasASHA.length > 0 ? (deltasASHA.reduce((a, b) => a + b, 0) / deltasASHA.length).toFixed(2) : null;
+
+      // Atualização dos cards no DOM
       document.getElementById('kpi-total-unicos').innerText = idsProcessados.size;
       document.getElementById('kpi-total-registros').innerText = linhas.length;
       const mediaFinal = qtdEsperaValida > 0 ? (somaEspera / qtdEsperaValida).toFixed(1) : 0;
       document.getElementById('kpi-tempo-medio').innerText = `${mediaFinal} h`;
+      
+      document.getElementById('kpi-delta-fois').innerText = mediaFOIS !== null ? (mediaFOIS > 0 ? `+${mediaFOIS}` : mediaFOIS) : 'N/D';
+      document.getElementById('kpi-delta-asha').innerText = mediaASHA !== null ? (mediaASHA > 0 ? `+${mediaASHA}` : mediaASHA) : 'N/D';
 
       let datasOrdenadas = Array.from(conjuntoTodasDatas).sort();
       if (datasOrdenadas.length > 0 && periodoSelecionado !== 'TODOS') {
@@ -572,7 +630,7 @@
           maintainAspectRatio: false, 
           plugins: { 
             legend: { position: 'top' },
-            datalabels: { display: false } // Desativa as porcentagens neste gráfico
+            datalabels: { display: false }
           } 
         }
       });
@@ -589,7 +647,7 @@
         },
         options: { 
           responsive: true, 
-          layout: { padding: { top: 25 } }, // Dá espaço pro texto não cortar no topo
+          layout: { padding: { top: 25 } },
           plugins: { 
             legend: { display: false },
             datalabels: {
@@ -629,7 +687,7 @@
           maintainAspectRatio: false, 
           plugins: { 
             legend: { display: false },
-            datalabels: { display: false } // Desativa as porcentagens neste gráfico
+            datalabels: { display: false }
           },
           scales: {
             y: {
@@ -659,7 +717,7 @@
                 let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                 if (sum === 0 || value === 0) return '';
                 let perc = (value * 100 / sum);
-                if (perc < 4) return ''; // Esconde em fatias muito pequenas
+                if (perc < 4) return '';
                 return parseFloat(perc.toFixed(1)) + "%";
               }
             }
@@ -690,7 +748,7 @@
                 let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                 if (sum === 0 || value === 0) return '';
                 let perc = (value * 100 / sum);
-                if (perc < 4) return ''; // Esconde em fatias muito pequenas
+                if (perc < 4) return '';
                 return parseFloat(perc.toFixed(1)) + "%";
               }
             }
