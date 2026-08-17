@@ -536,10 +536,15 @@
           const nomeConsultor = String(consultor).trim();
           consultores[nomeConsultor] = (consultores[nomeConsultor] || 0) + 1;
         }
+        
         if (turno && String(turno).trim() !== '') {
-          const nomeTurno = String(turno).trim();
-          turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
-        }
+  let nomeTurno = String(turno).trim();
+  nomeTurno = nomeTurno.replace(/TURNO\s*\d+\s*[-:]?\s*/gi, '').trim();
+    nomeTurno = nomeTurno.replace(/^\((.*)\)$/, '$1').trim();
+  if (!nomeTurno) nomeTurno = String(turno).trim();
+  turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
+}
+
         if (!isNaN(tempoEspera)) {
           somaEspera += tempoEspera;
           qtdEsperaValida++;
