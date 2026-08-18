@@ -327,7 +327,7 @@
     </div>
 
     <div class="kpi-card" style="border-left-color: #17a2b8;">
-      <h3>SLA Respondido (<= 24h)</h3>
+      <h3>Consultorias Respondidas em até 24h</h3>
       <p id="kpi-sla-24h">-</p>
     </div>
     
@@ -347,7 +347,7 @@
     </div>
 
     <div class="kpi-card" style="border-left-color: #e83e8c;">
-      <h3>Pacientes c/ TQT</h3>
+      <h3>Pacientes com TQT</h3>
       <p id="kpi-pct-tqt">-</p>
     </div>
 
@@ -414,25 +414,25 @@
       <canvas id="graficoDiaSemana"></canvas>
     </div>
 
-    <!-- Novo: Top Especialidades Solicitantes -->
+    <!-- Novo: Ranking Especialidades Solicitantes -->
     <div class="chart-card">
-      <h2>Top Especialidades Solicitantes</h2>
+      <h2>Especialidades Solicitantes</h2>
       <canvas id="graficoEspecialidades"></canvas>
     </div>
 
     <!-- Novo: Ranking Espera por Unidade -->
     <div class="chart-card">
-      <h2>Top 8 Unidades c/ Maior Tempo de Espera (h)</h2>
+      <h2>Unidades com Maior Tempo de Espera (h)</h2>
       <canvas id="graficoEsperaUnidades"></canvas>
     </div>
 
     <div class="chart-card">
-      <h2>Perfil do Solicitante (Conselho)</h2>
+      <h2>Perfil do Solicitante</h2>
       <canvas id="graficoSolicitantes"></canvas>
     </div>
 
     <div class="chart-card">
-      <h2>Perfil de Complexidade Assistencial</h2>
+      <h2>Nível Assistencial</h2>
       <canvas id="graficoNivelAssistencial"></canvas>
     </div>
 
@@ -917,7 +917,7 @@
       instanciaGraficoEvolucaoFois = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: ['Nível 1-3 (Severo/Sonda)', 'Nível 4 (Transição)', 'Nível 5-7 (VO Total)'],
+          labels: ['FOIS 1-3', 'FOIS 4', 'FOIS 5-7'],
           datasets: [
             { label: 'Primeiro Atendimento', data: [entrada['Nível 1-3'], entrada['Nível 4'], entrada['Nível 5-7']], backgroundColor: '#dc3545', borderRadius: 4 },
             { label: 'Último Atendimento', data: [saida['Nível 1-3'], saida['Nível 4'], saida['Nível 5-7']], backgroundColor: '#28a745', borderRadius: 4 }
