@@ -532,7 +532,7 @@
   if (/\b(ZERO|NPO|NADA POR VIA ORAL)\b/.test(texto)) return 'NPO (Zero)';
   return 'Outros / Não Informado';
 }
-}
+
 
     function verificarTraqueostomia(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return false;
