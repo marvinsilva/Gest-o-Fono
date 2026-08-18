@@ -518,18 +518,21 @@
       return match ? parseInt(match[1], 10) : null;
     }
 
-   function extrairViaAlimentacao(textoResposta) {
+ function extrairViaAlimentacao(textoResposta) {
   if (!textoResposta || String(textoResposta).trim() === '') return 'Outros / Não Informado';
+
   const texto = String(textoResposta)
     .toUpperCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+
   if (/\b(GTT|GASTROSTOMIA)\b/.test(texto)) return 'GTT';
   if (/\b(SNE|SNT|SNG|SONDA ENTERAL|SONDA NASOENTERICA|SONDA NASOGASTRICA)\b/.test(texto)) return 'SNE';
   if (/\b(VO|VIA ORAL|DIETA ORAL|PASTOSA|BRANDA|LIQUIDIFICADA|LIQUIDA|INTRODUTORIA|DIETA NORMAL|VO NORMAL)\b/.test(texto)) {
     return 'Via Oral (VO)';
   }
   if (/\b(ZERO|NPO|NADA POR VIA ORAL)\b/.test(texto)) return 'NPO (Zero)';
+
   return 'Outros / Não Informado';
 }
 
