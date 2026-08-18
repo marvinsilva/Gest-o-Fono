@@ -139,6 +139,16 @@
       border-color: #dc3545;
     }
 
+    .file-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #eef2f7;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px dashed #0056b3;
+    }
+
     .search-box {
       width: 100%;
       padding: 8px;
@@ -283,6 +293,14 @@
   </header>
 
   <div class="filter-container">
+    <!-- Seleção / Carga do CSV -->
+    <div class="filter-group" style="max-width: 320px;">
+      <span class="filter-label">Carregar Arquivo CSV:</span>
+      <div class="file-input-wrapper">
+        <input type="file" id="input-csv" accept=".csv" onchange="carregarCSVManual(event)" style="font-size: 13px;">
+      </div>
+    </div>
+
     <!-- Filtro 1: Áreas de Atendimento -->
     <div class="filter-group">
       <span class="filter-label">Filtrar por Área(s) de Atendimento:</span>
@@ -396,31 +414,26 @@
 
   <!-- Gráficos Gerenciais e Clínicos -->
   <div class="charts-grid">
-    <!-- Novo: Comparativo Entrada vs Saída FOIS -->
     <div class="chart-card">
       <h2>Evolução FOIS: Entrada vs. Saída</h2>
       <canvas id="graficoEvolucaoFois"></canvas>
     </div>
 
-    <!-- Novo: Via de Alimentação Predominante -->
     <div class="chart-card">
       <h2>Via de Alimentação Predominante</h2>
       <canvas id="graficoViasAlimentacao"></canvas>
     </div>
 
-    <!-- Novo: Demanda por Dia da Semana -->
     <div class="chart-card">
       <h2>Demanda por Dia da Semana</h2>
       <canvas id="graficoDiaSemana"></canvas>
     </div>
 
-    <!-- Novo: Ranking Especialidades Solicitantes -->
     <div class="chart-card">
       <h2>Especialidades Solicitantes</h2>
       <canvas id="graficoEspecialidades"></canvas>
     </div>
 
-    <!-- Novo: Ranking Espera por Unidade -->
     <div class="chart-card">
       <h2>Unidades com Maior Tempo de Espera (h)</h2>
       <canvas id="graficoEsperaUnidades"></canvas>
@@ -443,7 +456,9 @@
   </div>
 
   <script>
-    Chart.register(ChartDataLabels);
+    if (typeof ChartDataLabels !== 'undefined') {
+      Chart.register(ChartDataLabels);
+    }
 
     const NOME_ARQUIVO_CSV = "DADOS.csv";
     
@@ -492,7 +507,7 @@
       return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
-    // EXTRAÇÕES VIA REGEX DO CAMPO 'RESPOSTA'
+    // EXTRAÇÕES VIA REGEX CORRIGIDAS
     function extrairNivelAssistencial(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return 'Não Informado';
       const textoLimpo = String(textoResposta)
@@ -518,24 +533,23 @@
       return match ? parseInt(match[1], 10) : null;
     }
 
- function extrairViaAlimentacao(textoResposta) {
-  if (!textoResposta || String(textoResposta).trim() === '') return 'Outros / Não Informado';
+    function extrairViaAlimentacao(textoResposta) {
+      if (!textoResposta || String(textoResposta).trim() === '') return 'Outros / Não Informado';
 
-  const texto = String(textoResposta)
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+      const texto = String(textoResposta)
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
-  if (/\b(GTT|GASTROSTOMIA)\b/.test(texto)) return 'GTT';
-  if (/\b(SNE|SNT|SNG|SONDA ENTERAL|SONDA NASOENTERICA|SONDA NASOGASTRICA)\b/.test(texto)) return 'SNE';
-  if (/\b(VO|VIA ORAL|DIETA ORAL|PASTOSA|BRANDA|LIQUIDIFICADA|LIQUIDA|INTRODUTORIA|DIETA NORMAL|VO NORMAL)\b/.test(texto)) {
-    return 'Via Oral (VO)';
-  }
-  if (/\b(ZERO|NPO|NADA POR VIA ORAL)\b/.test(texto)) return 'NPO (Zero)';
+      if (/\b(GTT|GASTROSTOMIA)\b/.test(texto)) return 'GTT';
+      if (/\b(SNE|SNT|SNG|SONDA ENTERAL|SONDA NASOENTERICA|SONDA NASOGASTRICA)\b/.test(texto)) return 'SNE';
+      if (/\b(VO|VIA ORAL|DIETA ORAL|PASTOSA|BRANDA|LIQUIDIFICADA|LIQUIDA|INTRODUTORIA|DIETA NORMAL|VO NORMAL)\b/.test(texto)) {
+        return 'Via Oral (VO)';
+      }
+      if (/\b(ZERO|NPO|NADA POR VIA ORAL)\b/.test(texto)) return 'NPO (Zero)';
 
-  return 'Outros / Não Informado';
-}
-
+      return 'Outros / Não Informado';
+    }
 
     function verificarTraqueostomia(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return false;
@@ -632,6 +646,30 @@
       document.getElementById('dt-inicio').value = '';
       document.getElementById('dt-fim').value = '';
       aplicarFiltro();
+    }
+
+    function carregarCSVManual(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        encoding: "UTF-8",
+        complete: function(results) {
+          if (results.data && results.data.length > 0) {
+            dadosBrutosCSV = results.data;
+            preencherOpcoesDeFiltro(dadosBrutosCSV);
+            configurarLimitesDatas(dadosBrutosCSV);
+            processarDadosCSV(dadosBrutosCSV);
+          } else {
+            alert("O arquivo selecionado está vazio ou incorreto.");
+          }
+        },
+        error: function(err) {
+          alert("Erro ao ler o arquivo CSV: " + err);
+        }
+      });
     }
 
     function aplicarFiltro() {
@@ -885,7 +923,6 @@
       renderizarGraficoPizza('graficoTurnos', Object.keys(turnos), Object.values(turnos));
       renderizarGraficoSolicitantes(Object.keys(solicitantes), Object.values(solicitantes));
 
-      // Novos Gráficos
       renderizarGraficoEvolucaoFois(entradaFOIS, saidaFOIS);
       renderizarGraficoPizza('graficoViasAlimentacao', Object.keys(viasAlimentacao), Object.values(viasAlimentacao));
       renderizarGraficoDiaSemana(['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'], diasSemana);
@@ -1074,9 +1111,12 @@
       });
     }
 
-    // Leitura Inicial do CSV
+    // Tentativa inicial de leitura do DADOS.csv
     Papa.parse(NOME_ARQUIVO_CSV, {
-      download: true, header: true, skipEmptyLines: true, encoding: "UTF-8",
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      encoding: "UTF-8",
       complete: function(results) {
         if (results.data && results.data.length > 0) {
           dadosBrutosCSV = results.data;
@@ -1084,6 +1124,9 @@
           configurarLimitesDatas(dadosBrutosCSV);
           processarDadosCSV(dadosBrutosCSV);
         }
+      },
+      error: function() {
+        console.warn("Não foi possível carregar o arquivo automático DADOS.csv. Utilize o campo de seleção de arquivo manual.");
       }
     });
   </script>
