@@ -26,13 +26,24 @@
       margin: 0;
     }
 
+    /* Container de Filtros com Layout Flexível */
     .filter-container {
       background: #ffffff;
-      padding: 15px 20px;
+      padding: 18px 20px;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       margin-bottom: 25px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
       position: relative;
+      flex: 1;
+      min-width: 280px;
     }
     .filter-label {
       font-weight: bold;
@@ -44,7 +55,6 @@
 
     .dropdown-btn {
       width: 100%;
-      max-width: 400px;
       padding: 10px 14px;
       border-radius: 6px;
       border: 1px solid #ced4da;
@@ -56,6 +66,7 @@
       justify-content: space-between;
       align-items: center;
       color: #333;
+      box-sizing: border-box;
     }
     .dropdown-btn:after {
       content: "▼";
@@ -66,18 +77,66 @@
     .dropdown-content {
       display: none;
       position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      min-width: 300px;
       background-color: #ffffff;
-      min-width: 380px;
-      max-width: 450px;
       box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.15);
       border-radius: 6px;
       border: 1px solid #e0e0e0;
       padding: 10px;
       z-index: 100;
       margin-top: 5px;
+      box-sizing: border-box;
     }
     .dropdown-content.show {
       display: block;
+    }
+
+    /* Estilos do Seletor de Datas */
+    .date-inputs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .date-picker {
+      padding: 9px 12px;
+      border-radius: 6px;
+      border: 1px solid #ced4da;
+      font-size: 14px;
+      color: #333;
+      background-color: #fff;
+      font-family: inherit;
+      outline: none;
+      flex: 1;
+      min-width: 130px;
+      box-sizing: border-box;
+    }
+    .date-picker:focus {
+      border-color: #0056b3;
+    }
+    .date-separator {
+      font-size: 13px;
+      color: #6c757d;
+      font-weight: 600;
+    }
+    .btn-clear-date {
+      background-color: #e9ecef;
+      border: 1px solid #ced4da;
+      color: #495057;
+      padding: 9px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .btn-clear-date:hover {
+      background-color: #dc3545;
+      color: #ffffff;
+      border-color: #dc3545;
     }
 
     .search-box {
@@ -225,19 +284,33 @@
   </header>
 
   <div class="filter-container">
-    <span class="filter-label">Filtrar por Área(s) de Atendimento:</span>
-    <button id="btn-dropdown" class="dropdown-btn" onclick="alternarDropdown()">
-      <span id="btn-text">Todas as Áreas selecionadas</span>
-    </button>
-    <div id="dropdown-list" class="dropdown-content">
-      <input type="text" id="input-busca" class="search-box" placeholder="Pesquisar área..." onkeyup="filtrarListaOpcoes()">
-      <div class="checkbox-list">
-        <label class="checkbox-item">
-          <input type="checkbox" id="chk-todos" checked onchange="marcarTodos(this)">
-          <b>-- Selecionar Todas --</b>
-        </label>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 4px 0;">
-        <div id="lista-checkboxes"></div>
+    <!-- Filtro 1: Áreas de Atendimento -->
+    <div class="filter-group">
+      <span class="filter-label">Filtrar por Área(s) de Atendimento:</span>
+      <button id="btn-dropdown" class="dropdown-btn" onclick="alternarDropdown()">
+        <span id="btn-text">Todas as Áreas selecionadas</span>
+      </button>
+      <div id="dropdown-list" class="dropdown-content">
+        <input type="text" id="input-busca" class="search-box" placeholder="Pesquisar área..." onkeyup="filtrarListaOpcoes()">
+        <div class="checkbox-list">
+          <label class="checkbox-item">
+            <input type="checkbox" id="chk-todos" checked onchange="marcarTodos(this)">
+            <b>-- Selecionar Todas --</b>
+          </label>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 4px 0;">
+          <div id="lista-checkboxes"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtro 2: Seletor de Datas -->
+    <div class="filter-group">
+      <span class="filter-label">Filtrar por Período:</span>
+      <div class="date-inputs">
+        <input type="date" id="dt-inicio" class="date-picker" onchange="aplicarFiltro()" title="Data Inicial">
+        <span class="date-separator">até</span>
+        <input type="date" id="dt-fim" class="date-picker" onchange="aplicarFiltro()" title="Data Final">
+        <button type="button" class="btn-clear-date" onclick="limparFiltroDatas()" title="Limpar Período">Limpar</button>
       </div>
     </div>
   </div>
@@ -383,11 +456,11 @@
     }
 
     function extrairNotaEscala(textoResposta, escala) {
-  if (!textoResposta || String(textoResposta).trim() === '') return null;
-  const regex = new RegExp(`${escala}[^\\d\\/\\.\\n]{0,15}\\b([1-7])\\b`, 'i');
-  const match = String(textoResposta).match(regex);
-  return match ? parseInt(match[1], 10) : null;
-}
+      if (!textoResposta || String(textoResposta).trim() === '') return null;
+      const regex = new RegExp(`${escala}[^\\d\\/\\.\\n]{0,15}\\b([1-7])\\b`, 'i');
+      const match = String(textoResposta).match(regex);
+      return match ? parseInt(match[1], 10) : null;
+    }
     
     function alternarDropdown() {
       document.getElementById('dropdown-list').classList.toggle('show');
@@ -436,6 +509,31 @@
       });
     }
 
+    function configurarLimitesDatas(linhas) {
+      let minData = null;
+      let maxData = null;
+
+      linhas.forEach(linha => {
+        const dSolic = extrairDataISO(linha['SOLIC_CONSULTORIA']);
+        const dResp = extrairDataISO(linha['DTHR_RESPOSTA']);
+        const dRef = dResp || dSolic;
+        if (dRef) {
+          if (!minData || dRef < minData) minData = dRef;
+          if (!maxData || dRef > maxData) maxData = dRef;
+        }
+      });
+
+      const inputInicio = document.getElementById('dt-inicio');
+      const inputFim = document.getElementById('dt-fim');
+
+      if (minData && maxData) {
+        inputInicio.min = minData;
+        inputInicio.max = maxData;
+        inputFim.min = minData;
+        inputFim.max = maxData;
+      }
+    }
+
     function marcarTodos(source) {
       const checkboxes = document.querySelectorAll('.chk-area');
       checkboxes.forEach(chk => chk.checked = source.checked);
@@ -446,6 +544,12 @@
       periodoSelecionado = opcao;
       document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
       elementoBotao.classList.add('active');
+      aplicarFiltro();
+    }
+
+    function limparFiltroDatas() {
+      document.getElementById('dt-inicio').value = '';
+      document.getElementById('dt-fim').value = '';
       aplicarFiltro();
     }
 
@@ -467,12 +571,32 @@
       }
 
       let dadosFiltrados = dadosBrutosCSV;
+
+      // Filtro por Áreas de Atendimento
       if (selecionadas.length < checkboxes.length) {
-        dadosFiltrados = dadosBrutosCSV.filter(linha => {
+        dadosFiltrados = dadosFiltrados.filter(linha => {
           const local = linha['LOCAL_ATEND'];
           return local && selecionadas.includes(String(local).trim());
         });
       }
+
+      // Filtro por Seletor de Datas
+      const dtInicio = document.getElementById('dt-inicio').value;
+      const dtFim = document.getElementById('dt-fim').value;
+
+      if (dtInicio || dtFim) {
+        dadosFiltrados = dadosFiltrados.filter(linha => {
+          const dSolic = extrairDataISO(linha['SOLIC_CONSULTORIA']);
+          const dResp = extrairDataISO(linha['DTHR_RESPOSTA']);
+          const dRef = dResp || dSolic;
+
+          if (!dRef) return false;
+          if (dtInicio && dRef < dtInicio) return false;
+          if (dtFim && dRef > dtFim) return false;
+          return true;
+        });
+      }
+
       processarDadosCSV(dadosFiltrados);
     }
 
@@ -549,12 +673,12 @@
         }
         
         if (turno && String(turno).trim() !== '') {
-  let nomeTurno = String(turno).trim();
-  nomeTurno = nomeTurno.replace(/TURNO\s*\d+\s*[-:]?\s*/gi, '').trim();
-    nomeTurno = nomeTurno.replace(/^\((.*)\)$/, '$1').trim();
-  if (!nomeTurno) nomeTurno = String(turno).trim();
-  turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
-}
+          let nomeTurno = String(turno).trim();
+          nomeTurno = nomeTurno.replace(/TURNO\s*\d+\s*[-:]?\s*/gi, '').trim();
+          nomeTurno = nomeTurno.replace(/^\((.*)\)$/, '$1').trim();
+          if (!nomeTurno) nomeTurno = String(turno).trim();
+          turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
+        }
 
         if (!isNaN(tempoEspera)) {
           somaEspera += tempoEspera;
@@ -779,6 +903,7 @@
         if (results.data && results.data.length > 0) {
           dadosBrutosCSV = results.data;
           preencherOpcoesDeFiltro(dadosBrutosCSV);
+          configurarLimitesDatas(dadosBrutosCSV);
           processarDadosCSV(dadosBrutosCSV);
         }
       }
