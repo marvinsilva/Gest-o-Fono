@@ -247,21 +247,32 @@
       <h3>Pacientes</h3>
       <p id="kpi-total-unicos">-</p>
     </div>
+    
     <div class="kpi-card" style="border-left-color: #28a745;">
       <h3>Total de Atendimentos</h3>
       <p id="kpi-total-registros">-</p>
     </div>
+    
     <div class="kpi-card" style="border-left-color: #ffc107;">
       <h3>Tempo Médio Resposta</h3>
       <p id="kpi-tempo-medio">-</p>
     </div>
+
     <div class="kpi-card" style="border-left-color: #6f42c1;">
-      <h3>Evolução Média FOIS (Δ)</h3>
-      <p id="kpi-delta-fois">-</p>
-    </div>
-    <div class="kpi-card" style="border-left-color: #17a2b8;">
-      <h3>Evolução Média ASHA (Δ)</h3>
-      <p id="kpi-delta-asha">-</p>
+      <h3>Evolução Funcional Média (Δ)</h3>
+      <div style="display: flex; justify-content: space-around; align-items: center; margin-top: 8px;">
+        <div style="text-align: center;">
+          <span style="font-size: 11px; font-weight: 700; color: #6c757d; display: block; margin-bottom: 2px;">FOIS</span>
+          <p id="kpi-delta-fois" style="font-size: 26px;">-</p>
+        </div>
+        
+        <div style="border-left: 1px solid #e0e0e0; height: 35px; margin: 0 5px;"></div>
+        
+        <div style="text-align: center;">
+          <span style="font-size: 11px; font-weight: 700; color: #6c757d; display: block; margin-bottom: 2px;">ASHA</span>
+          <p id="kpi-delta-asha" style="font-size: 26px;">-</p>
+        </div>
+      </div>
     </div>
   </div>
 
