@@ -649,28 +649,51 @@
     }
 
     function carregarCSVManual(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+  const file = event.target.files[0];
+  if (!file) return;
 
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        encoding: "UTF-8",
-        complete: function(results) {
-          if (results.data && results.data.length > 0) {
-            dadosBrutosCSV = results.data;
-            preencherOpcoesDeFiltro(dadosBrutosCSV);
-            configurarLimitesDatas(dadosBrutosCSV);
-            processarDadosCSV(dadosBrutosCSV);
-          } else {
-            alert("O arquivo selecionado está vazio ou incorreto.");
-          }
-        },
-        error: function(err) {
-          alert("Erro ao ler o arquivo CSV: " + err);
-        }
-      });
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const buffer = e.target.result;
+    let texto;
+
+    // 1. Tenta decodificar como UTF-8 estrito
+    try {
+      const decoder = new TextDecoder('utf-8', { fatal: true });
+      texto = decoder.decode(buffer);
+    } catch (err) {
+      // 2. Se der erro de validação (arquivo em ANSI/ISO do Excel), usa ISO-8859-1
+      const decoder = new TextDecoder('iso-8859-1');
+      texto = decoder.decode(buffer);
     }
+
+    // 3. Entrega o texto já corrigido para o PapaParse
+    Papa.parse(texto, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: function(header) {
+        return header.replace(/^\uFEFF/, '').trim();
+      },
+      complete: function(results) {
+        if (results.data && results.data.length > 0) {
+          dadosBrutosCSV = results.data;
+          preencherOpcoesDeFiltro(dadosBrutosCSV);
+          configurarLimitesDatas(dadosBrutosCSV);
+          processarDadosCSV(dadosBrutosCSV);
+        } else {
+          alert("O arquivo selecionado está vazio ou incorreto.");
+        }
+      },
+      error: function(err) {
+        alert("Erro ao ler o arquivo CSV: " + err);
+      }
+    });
+  };
+
+  // Lê o arquivo em formato de memória bruta para validar a codificação
+  reader.readAsArrayBuffer(file);
+}
 
     function aplicarFiltro() {
       const checkboxes = document.querySelectorAll('.chk-area');
