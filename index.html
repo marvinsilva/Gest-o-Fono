@@ -404,7 +404,7 @@
 
     <!-- Novo: Via de Alimentação Predominante -->
     <div class="chart-card">
-      <h2>Via de Alimentação (Predominante)</h2>
+      <h2>Via de Alimentação Predominante</h2>
       <canvas id="graficoViasAlimentacao"></canvas>
     </div>
 
@@ -518,16 +518,21 @@
       return match ? parseInt(match[1], 10) : null;
     }
 
-    function extrairViaAlimentacao(textoResposta) {
-      if (!textoResposta || String(textoResposta).trim() === '') return 'Não Info';
-      const texto = String(textoResposta).toUpperCase();
-      if (/\b(GTT|GASTROSTOMIA)\b/.test(texto)) return 'GTT';
-      if (/\b(SNT|SONDA NASOENT[EÉ]RICA)\b/.test(texto)) return 'SNT (Nasoentérica)';
-      if (/\b(SNG|SONDA NASOG[AÁ]STRICA)\b/.test(texto)) return 'SNG (Nasogástrica)';
-      if (/\b(VO|VIA ORAL|DIETA ORAL|DIETA PASTOSA|DIETA BRANDA)\b/.test(texto)) return 'Via Oral (VO)';
-      if (/\b(ZERO|NPO|NADA POR VIA ORAL)\b/.test(texto)) return 'NPO (Zero)';
-      return 'Outros/Não Info';
-    }
+   function extrairViaAlimentacao(textoResposta) {
+  if (!textoResposta || String(textoResposta).trim() === '') return 'Outros / Não Informado';
+  const texto = String(textoResposta)
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (/\b(GTT|GASTROSTOMIA)\b/.test(texto)) return 'GTT';
+  if (/\b(SNE|SNT|SNG|SONDA ENTERAL|SONDA NASOENTERICA|SONDA NASOGASTRICA)\b/.test(texto)) return 'SNE';
+  if (/\b(VO|VIA ORAL|DIETA ORAL|PASTOSA|BRANDA|LIQUIDIFICADA|LIQUIDA|INTRODUTORIA|DIETA NORMAL|VO NORMAL)\b/.test(texto)) {
+    return 'Via Oral (VO)';
+  }
+  if (/\b(ZERO|NPO|NADA POR VIA ORAL)\b/.test(texto)) return 'NPO (Zero)';
+  return 'Outros / Não Informado';
+}
+}
 
     function verificarTraqueostomia(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return false;
