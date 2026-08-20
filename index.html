@@ -765,23 +765,16 @@ function extrairTurnoPorHorario(stringDataHora) {
       processarDadosCSV(dadosFiltrados);
     }
 
-    function processarDadosCSV(linhas) {
+function processarDadosCSV(linhas) {
       const idsProcessados = new Set();
       const consultores = {};
+      
+      // Inicializa os 3 turnos fixos
       const turnos = { 
-  'Manhã (07h-12h59)': 0, 
-  'Tarde (13h-18h59)': 0, 
-  'Noite (19h-06h59)': 0 
-};
-
-const dataHoraRef = linha['SOLIC_CONSULTORIA'] || linha['DTHR_RESPOSTA'];
-const nomeTurno = extrairTurnoPorHorario(dataHoraRef);
-
-if (turnos[nomeTurno] !== undefined) {
-  turnos[nomeTurno]++;
-} else {
-  turnos['Outros/Não Info'] = (turnos['Outros/Não Info'] || 0) + 1;
-}
+        'Manhã (07h-12h59)': 0, 
+        'Tarde (13h-18h59)': 0, 
+        'Noite (19h-06h59)': 0 
+      };
 
       const niveisAssistenciais = { 'Alto': 0, 'Médio': 0, 'Baixo': 0, 'Não Informado': 0 };
       const solicitantes = { 'Médicos': 0, 'Enfermeiros': 0, 'Outros/Não Info': 0 };
@@ -803,16 +796,29 @@ if (turnos[nomeTurno] !== undefined) {
       linhas.forEach(linha => {
         const idAtendimento = linha['NOME_PACIENTE'];
         const consultor     = linha['CONSULTOR'];
-        const turno         = linha['TURNO'];
         const textoResposta = linha['RESPOSTA'];
         const conselho      = linha['CONSELHO_SOLIC'];
         const localAtend    = linha['LOCAL_ATEND'];
         const espAtend      = linha['ESP_ATENDIMENTO'] || linha['SIGLA_ESPECIALIDADE_ATENDIMENTO'];
         const valorTempo    = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
         const tempoEspera   = converterParaNumero(valorTempo);
-        const dataSolic     = extrairDataISO(linha['SOLIC_CONSULTORIA']);
-        const dataResp      = extrairDataISO(linha['DTHR_RESPOSTA']);
         
+        // Datas brutas e formatadas ISO
+        const rawSolic      = linha['SOLIC_CONSULTORIA'];
+        const rawResp       = linha['DTHR_RESPOSTA'];
+        const dataSolic     = extrairDataISO(rawSolic);
+        const dataResp      = extrairDataISO(rawResp);
+
+        // --- CÁLCULO DO TURNO POR HORÁRIO DA SOLICITAÇÃO/RESPOSTA ---
+        const dataHoraRef = rawSolic || rawResp;
+        const nomeTurno = extrairTurnoPorHorario(dataHoraRef);
+
+        if (turnos[nomeTurno] !== undefined) {
+          turnos[nomeTurno]++;
+        } else {
+          turnos['Outros/Não Info'] = (turnos['Outros/Não Info'] || 0) + 1;
+        }
+
         // Extrações de Texto/Regex
         const nivel = extrairNivelAssistencial(textoResposta);
         const via = extrairViaAlimentacao(textoResposta);
@@ -872,13 +878,6 @@ if (turnos[nomeTurno] !== undefined) {
           const nomeConsultor = String(consultor).trim();
           consultores[nomeConsultor] = (consultores[nomeConsultor] || 0) + 1;
         }
-        
-        if (turno && String(turno).trim() !== '') {
-          let nomeTurno = String(turno).trim().replace(/TURNO\s*\d+\s*[-:]?\s*/gi, '').trim();
-          nomeTurno = nomeTurno.replace(/^\((.*)\)$/, '$1').trim();
-          if (!nomeTurno) nomeTurno = String(turno).trim();
-          turnos[nomeTurno] = (turnos[nomeTurno] || 0) + 1;
-        }
 
         if (!isNaN(tempoEspera)) {
           somaEspera += tempoEspera;
@@ -911,7 +910,6 @@ if (turnos[nomeTurno] !== undefined) {
           const primeiroFOIS = comFOIS[0].fois;
           const ultimoFOIS = comFOIS[comFOIS.length - 1].fois;
 
-          // Classificação de Faixa Entrada vs Saída
           const classificarFaixa = (n) => n <= 3 ? 'Nível 1-3' : (n === 4 ? 'Nível 4' : 'Nível 5-7');
           entradaFOIS[classificarFaixa(primeiroFOIS)]++;
           saidaFOIS[classificarFaixa(ultimoFOIS)]++;
