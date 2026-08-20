@@ -507,6 +507,31 @@
       return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
+function extrairTurnoPorHorario(stringDataHora) {
+  if (!stringDataHora || String(stringDataHora).trim() === '') return 'Não Informado';
+  const texto = String(stringDataHora).trim();
+  
+  let hora = null;
+  // Extrai a hora do formato "DD/MM/AAAA HH:MM" ou "AAAA-MM-DD HH:MM:SS"
+  if (texto.includes(' ')) {
+    const parteHora = texto.split(' ')[1];
+    if (parteHora && parteHora.includes(':')) {
+      hora = parseInt(parteHora.split(':')[0], 10);
+    }
+  }
+  
+  if (hora === null || isNaN(hora)) return 'Não Informado';
+
+  // Lógica dos 3 Turnos
+  if (hora >= 7 && hora <= 12) {
+    return 'Manhã (07h-12h59)';
+  } else if (hora >= 13 && hora <= 18) {
+    return 'Tarde (13h-18h59)';
+  } else {
+    return 'Noite (19h-06h59)';
+  }
+}
+
     // EXTRAÇÕES VIA REGEX CORRIGIDAS
     function extrairNivelAssistencial(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return 'Não Informado';
@@ -743,7 +768,21 @@
     function processarDadosCSV(linhas) {
       const idsProcessados = new Set();
       const consultores = {};
-      const turnos = {};
+      const turnos = { 
+  'Manhã (07h-12h59)': 0, 
+  'Tarde (13h-18h59)': 0, 
+  'Noite (19h-06h59)': 0 
+};
+
+const dataHoraRef = linha['SOLIC_CONSULTORIA'] || linha['DTHR_RESPOSTA'];
+const nomeTurno = extrairTurnoPorHorario(dataHoraRef);
+
+if (turnos[nomeTurno] !== undefined) {
+  turnos[nomeTurno]++;
+} else {
+  turnos['Outros/Não Info'] = (turnos['Outros/Não Info'] || 0) + 1;
+}
+
       const niveisAssistenciais = { 'Alto': 0, 'Médio': 0, 'Baixo': 0, 'Não Informado': 0 };
       const solicitantes = { 'Médicos': 0, 'Enfermeiros': 0, 'Outros/Não Info': 0 };
       const viasAlimentacao = {};
