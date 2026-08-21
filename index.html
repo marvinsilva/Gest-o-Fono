@@ -1046,10 +1046,18 @@ function processarDadosCSV(linhas) {
     }
 
     function renderizarGraficoBarraHorizontal(idCanvas, rotulos, dados, cor) {
-  if (instanciaGraficoEspecialidades) instanciaGraficoEspecialidades.destroy();
-  
-  const ctx = document.getElementById(idCanvas).getContext('2d');
-  instanciaGraficoEspecialidades = new Chart(ctx, {
+  // 1. Destrói a instância certa com base no ID que recebeu
+  if (idCanvas === 'graficoEspecialidades' && instanciaGraficoEspecialidades) {
+    instanciaGraficoEspecialidades.destroy();
+  } else if (idCanvas === 'graficoEsperaUnidades' && instanciaGraficoEsperaUnidades) {
+    instanciaGraficoEsperaUnidades.destroy();
+  }
+
+  const canvas = document.getElementById(idCanvas);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const novoGrafico = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: rotulos,
@@ -1062,6 +1070,13 @@ function processarDadosCSV(linhas) {
       scales: { x: { beginAtZero: true } }
     }
   });
+
+  // 2. Guarda a referência na variável individual correspondente
+  if (idCanvas === 'graficoEspecialidades') {
+    instanciaGraficoEspecialidades = novoGrafico;
+  } else if (idCanvas === 'graficoEsperaUnidades') {
+    instanciaGraficoEsperaUnidades = novoGrafico;
+  }
 }
 
     function renderizarGraficoNivelAssistencial(dadosNiveis) {
