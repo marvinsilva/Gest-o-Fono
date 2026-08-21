@@ -507,29 +507,32 @@
       return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
-    function extrairTurnoPorHorario(stringDataHora) {
-      if (!stringDataHora || String(stringDataHora).trim() === '') return 'Não Informado';
-      const texto = String(stringDataHora).trim();
-      
-      let hora = null;
-      if (texto.includes(' ')) {
-        const parteHora = texto.split(' ')[1];
-        if (parteHora && parteHora.includes(':')) {
-          hora = parseInt(parteHora.split(':')[0], 10);
-        }
-      }
-      
-      if (hora === null || isNaN(hora)) return 'Não Informado';
-
-      if (hora >= 7 && hora <= 12) {
-        return 'Manhã (07h-12h59)';
-      } else if (hora >= 13 && hora <= 18) {
-        return 'Tarde (13h-18h59)';
-      } else {
-        return 'Noite (19h-06h59)';
-      }
+function extrairTurnoPorHorario(stringDataHora) {
+  if (!stringDataHora || String(stringDataHora).trim() === '') return 'Não Informado';
+  const texto = String(stringDataHora).trim();
+  
+  let hora = null;
+  // Extrai a hora do formato "DD/MM/AAAA HH:MM" ou "AAAA-MM-DD HH:MM:SS"
+  if (texto.includes(' ')) {
+    const parteHora = texto.split(' ')[1];
+    if (parteHora && parteHora.includes(':')) {
+      hora = parseInt(parteHora.split(':')[0], 10);
     }
+  }
+  
+  if (hora === null || isNaN(hora)) return 'Não Informado';
 
+  // Lógica dos 3 Turnos
+  if (hora >= 7 && hora <= 12) {
+    return 'Manhã (07h-12h59)';
+  } else if (hora >= 13 && hora <= 18) {
+    return 'Tarde (13h-18h59)';
+  } else {
+    return 'Noite (19h-06h59)';
+  }
+}
+
+    // EXTRAÇÕES VIA REGEX CORRIGIDAS
     function extrairNivelAssistencial(textoResposta) {
       if (!textoResposta || String(textoResposta).trim() === '') return 'Não Informado';
       const textoLimpo = String(textoResposta)
@@ -671,47 +674,51 @@
     }
 
     function carregarCSVManual(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+  const file = event.target.files[0];
+  if (!file) return;
 
-      const reader = new FileReader();
+  const reader = new FileReader();
 
-      reader.onload = function(e) {
-        const buffer = e.target.result;
-        let texto;
+  reader.onload = function(e) {
+    const buffer = e.target.result;
+    let texto;
 
-        try {
-          const decoder = new TextDecoder('utf-8', { fatal: true });
-          texto = decoder.decode(buffer);
-        } catch (err) {
-          const decoder = new TextDecoder('iso-8859-1');
-          texto = decoder.decode(buffer);
-        }
-
-        Papa.parse(texto, {
-          header: true,
-          skipEmptyLines: true,
-          transformHeader: function(header) {
-            return header.replace(/^\uFEFF/, '').trim();
-          },
-          complete: function(results) {
-            if (results.data && results.data.length > 0) {
-              dadosBrutosCSV = results.data;
-              preencherOpcoesDeFiltro(dadosBrutosCSV);
-              configurarLimitesDatas(dadosBrutosCSV);
-              processarDadosCSV(dadosBrutosCSV);
-            } else {
-              alert("O arquivo selecionado está vazio ou incorreto.");
-            }
-          },
-          error: function(err) {
-            alert("Erro ao ler o arquivo CSV: " + err);
-          }
-        });
-      };
-
-      reader.readAsArrayBuffer(file);
+    // 1. Tenta decodificar como UTF-8 estrito
+    try {
+      const decoder = new TextDecoder('utf-8', { fatal: true });
+      texto = decoder.decode(buffer);
+    } catch (err) {
+      // 2. Se der erro de validação (arquivo em ANSI/ISO do Excel), usa ISO-8859-1
+      const decoder = new TextDecoder('iso-8859-1');
+      texto = decoder.decode(buffer);
     }
+
+    // 3. Entrega o texto já corrigido para o PapaParse
+    Papa.parse(texto, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: function(header) {
+        return header.replace(/^\uFEFF/, '').trim();
+      },
+      complete: function(results) {
+        if (results.data && results.data.length > 0) {
+          dadosBrutosCSV = results.data;
+          preencherOpcoesDeFiltro(dadosBrutosCSV);
+          configurarLimitesDatas(dadosBrutosCSV);
+          processarDadosCSV(dadosBrutosCSV);
+        } else {
+          alert("O arquivo selecionado está vazio ou incorreto.");
+        }
+      },
+      error: function(err) {
+        alert("Erro ao ler o arquivo CSV: " + err);
+      }
+    });
+  };
+
+  // Lê o arquivo em formato de memória bruta para validar a codificação
+  reader.readAsArrayBuffer(file);
+}
 
     function aplicarFiltro() {
       const checkboxes = document.querySelectorAll('.chk-area');
@@ -758,10 +765,11 @@
       processarDadosCSV(dadosFiltrados);
     }
 
-    function processarDadosCSV(linhas) {
+function processarDadosCSV(linhas) {
       const idsProcessados = new Set();
       const consultores = {};
       
+      // Inicializa os 3 turnos fixos
       const turnos = { 
         'Manhã (07h-12h59)': 0, 
         'Tarde (13h-18h59)': 0, 
@@ -795,11 +803,13 @@
         const valorTempo    = linha['TEMPO_RESPOSTA_HORAS'] || linha['TEMPO_RESPOSTA_DIAS'];
         const tempoEspera   = converterParaNumero(valorTempo);
         
+        // Datas brutas e formatadas ISO
         const rawSolic      = linha['SOLIC_CONSULTORIA'];
         const rawResp       = linha['DTHR_RESPOSTA'];
         const dataSolic     = extrairDataISO(rawSolic);
         const dataResp      = extrairDataISO(rawResp);
 
+        // --- CÁLCULO DO TURNO POR HORÁRIO DA SOLICITAÇÃO/RESPOSTA ---
         const dataHoraRef = rawSolic || rawResp;
         const nomeTurno = extrairTurnoPorHorario(dataHoraRef);
 
@@ -809,6 +819,7 @@
           turnos['Outros/Não Info'] = (turnos['Outros/Não Info'] || 0) + 1;
         }
 
+        // Extrações de Texto/Regex
         const nivel = extrairNivelAssistencial(textoResposta);
         const via = extrairViaAlimentacao(textoResposta);
         const temTQT = verificarTraqueostomia(textoResposta);
@@ -817,6 +828,7 @@
         viasAlimentacao[via] = (viasAlimentacao[via] || 0) + 1;
         if (temTQT) qtdComTQT++;
 
+        // Conselho Solicitante
         if (conselho && typeof conselho === 'string') {
           const cUpper = conselho.toUpperCase();
           if (cUpper.includes('CREMERS')) solicitantes['Médicos']++;
@@ -826,11 +838,13 @@
           solicitantes['Outros/Não Info']++;
         }
 
+        // Especialidade Solicitante
         if (espAtend && String(espAtend).trim() !== '') {
           const espNome = String(espAtend).trim();
           especialidades[espNome] = (especialidades[espNome] || 0) + 1;
         }
 
+        // Dias da Semana
         if (dataSolic) {
           contagemSolicitacoesPorDia[dataSolic] = (contagemSolicitacoesPorDia[dataSolic] || 0) + 1;
           conjuntoTodasDatas.add(dataSolic);
@@ -879,6 +893,7 @@
         }
       });
 
+      // Cálculos de FOIS, ASHA e Evolução Funcional
       const deltasFOIS = [];
       const deltasASHA = [];
       let pacientesEvoluiramPositivo = 0;
@@ -916,6 +931,7 @@
       const mediaFOIS = deltasFOIS.length > 0 ? (deltasFOIS.reduce((a, b) => a + b, 0) / deltasFOIS.length).toFixed(2) : null;
       const mediaASHA = deltasASHA.length > 0 ? (deltasASHA.reduce((a, b) => a + b, 0) / deltasASHA.length).toFixed(2) : null;
       
+      // Atualização dos Cards de KPI
       document.getElementById('kpi-total-unicos').innerText = idsProcessados.size;
       document.getElementById('kpi-total-registros').innerText = linhas.length;
       
@@ -937,6 +953,7 @@
       document.getElementById('kpi-delta-fois').innerText = mediaFOIS !== null ? (mediaFOIS > 0 ? `+${mediaFOIS}` : mediaFOIS) : 'N/D';
       document.getElementById('kpi-delta-asha').innerText = mediaASHA !== null ? (mediaASHA > 0 ? `+${mediaASHA}` : mediaASHA) : 'N/D';
 
+      // Filtro da Linha do Tempo
       let datasOrdenadas = Array.from(conjuntoTodasDatas).sort();
       if (datasOrdenadas.length > 0 && periodoSelecionado !== 'TODOS') {
         const dataMaisRecenteISO = datasOrdenadas[datasOrdenadas.length - 1];
@@ -971,20 +988,19 @@
       renderizarGraficoDiaSemana(['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'], diasSemana);
       
       // Top Especialidades Solicitantes (Barras Horizontais)
-      const topEsp = Object.entries(especialidades).sort((a,b) => b[1] - a[1]).slice(0, 7);
-      renderizarGraficoBarraHorizontal('graficoEspecialidades', topEsp.map(i => i[0]), topEsp.map(i => i[1]), '#17a2b8');
+const topEsp = Object.entries(especialidades).sort((a,b) => b[1] - a[1]).slice(0, 7);
+renderizarGraficoBarraHorizontal('graficoEspecialidades', topEsp.map(i => i[0]), topEsp.map(i => i[1]), '#17a2b8');
 
-      // Top Unidades Tempo de Espera (Linha + Tendência)
-      const rankingUnidades = Object.entries(tempoEsperaPorUnidade)
-        .map(([loc, obj]) => ({ loc, media: obj.soma / obj.count }))
-        .sort((a,b) => b.media - a.media)
-        .slice(0, 8);
+// Top Unidades Tempo de Espera (Linha + Tendência)
+const rankingUnidades = Object.entries(tempoEsperaPorUnidade)
+  .map(([loc, obj]) => ({ loc, media: obj.soma / obj.count }))
+  .sort((a,b) => b.media - a.media)
+  .slice(0, 8);
 
-      renderizarGraficoEsperaUnidades(
-        rankingUnidades.map(i => i.loc), 
-        rankingUnidades.map(i => i.media.toFixed(1))
-      );
-    } // <-- Fechamento da processarDadosCSV corrigido!
+renderizarGraficoEsperaUnidades(
+  rankingUnidades.map(i => i.loc), 
+  rankingUnidades.map(i => i.media.toFixed(1))
+);
 
     // FUNÇÕES DE RENDERIZAÇÃO DOS GRÁFICOS
     function renderizarGraficoLinhaTempo(labelsDatas, dadosSolicitados, dadosAtendidos) {
@@ -1033,90 +1049,92 @@
     }
 
     function renderizarGraficoBarraHorizontal(idCanvas, rotulos, dados, cor) {
-      if (instanciaGraficoEspecialidades) instanciaGraficoEspecialidades.destroy();
-      
-      const ctx = document.getElementById(idCanvas).getContext('2d');
-      instanciaGraficoEspecialidades = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: rotulos,
-          datasets: [{ data: dados, backgroundColor: cor, borderRadius: 4 }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          plugins: { legend: { display: false }, datalabels: { display: false } },
-          scales: { x: { beginAtZero: true } }
-        }
-      });
+  if (instanciaGraficoEspecialidades) instanciaGraficoEspecialidades.destroy();
+  
+  const ctx = document.getElementById(idCanvas).getContext('2d');
+  instanciaGraficoEspecialidades = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rotulos,
+      datasets: [{ data: dados, backgroundColor: cor, borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: { x: { beginAtZero: true } }
     }
+  });
+}
 
-    function renderizarGraficoEsperaUnidades(rotulos, dados) {
-      if (instanciaGraficoEsperaUnidades) instanciaGraficoEsperaUnidades.destroy();
+function renderizarGraficoEsperaUnidades(rotulos, dados) {
+  if (instanciaGraficoEsperaUnidades) instanciaGraficoEsperaUnidades.destroy();
 
-      const canvas = document.getElementById('graficoEsperaUnidades');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
+  const canvas = document.getElementById('graficoEsperaUnidades');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
 
-      const n = dados.length;
-      if (n === 0) return;
+  const n = dados.length;
+  if (n === 0) return;
 
-      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-      for (let i = 0; i < n; i++) {
-        const x = i;
-        const y = parseFloat(dados[i]) || 0;
-        sumX += x;
-        sumY += y;
-        sumXY += x * y;
-        sumXX += x * x;
+  // --- CÁLCULO DA LINHA DE TENDÊNCIA (REGRESSÃO LINEAR) ---
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (let i = 0; i < n; i++) {
+    const x = i;
+    const y = parseFloat(dados[i]) || 0;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  }
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) || 0;
+  const intercept = (sumY - slope * sumX) / n || 0;
+  const linhaTendencia = rotulos.map((_, i) => (slope * i + intercept).toFixed(1));
+
+  // --- CRIAÇÃO DO GRÁFICO DE LINHA ---
+  instanciaGraficoEsperaUnidades = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: rotulos,
+      datasets: [
+        {
+          label: 'Média de Espera (h)',
+          data: dados,
+          borderColor: '#dc3545',
+          backgroundColor: 'rgba(220, 53, 69, 0.15)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#dc3545'
+        },
+        {
+          label: 'Tendência',
+          data: linhaTendencia,
+          borderColor: '#ffc107',
+          borderWidth: 2,
+          borderDash: [6, 6], // Tracejado
+          fill: false,
+          pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top' },
+        datalabels: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Horas (h)' } },
+        x: { ticks: { maxRotation: 45, minRotation: 0 } }
       }
-
-      const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) || 0;
-      const intercept = (sumY - slope * sumX) / n || 0;
-      const linhaTendencia = rotulos.map((_, i) => (slope * i + intercept).toFixed(1));
-
-      instanciaGraficoEsperaUnidades = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: rotulos,
-          datasets: [
-            {
-              label: 'Média de Espera (h)',
-              data: dados,
-              borderColor: '#dc3545',
-              backgroundColor: 'rgba(220, 53, 69, 0.15)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.2,
-              pointRadius: 5,
-              pointHoverRadius: 7,
-              pointBackgroundColor: '#dc3545'
-            },
-            {
-              label: 'Tendência',
-              data: linhaTendencia,
-              borderColor: '#ffc107',
-              borderWidth: 2,
-              borderDash: [6, 6],
-              fill: false,
-              pointRadius: 0
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: true, position: 'top' },
-            datalabels: { display: false }
-          },
-          scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Horas (h)' } },
-            x: { ticks: { maxRotation: 45, minRotation: 0 } }
-          }
-        }
-      });
     }
+  });
+}
 
     function renderizarGraficoNivelAssistencial(dadosNiveis) {
       if (instanciaGraficoNivel) instanciaGraficoNivel.destroy();
@@ -1220,7 +1238,8 @@
         }
       });
     }
-
+}
+    // Tentativa inicial de leitura do DADOS.csv
     Papa.parse(NOME_ARQUIVO_CSV, {
       download: true,
       header: true,
